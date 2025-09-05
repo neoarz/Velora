@@ -45,10 +45,10 @@ class Downloader:
 
     def _get_format_options(self, choice):
         formats = {
-            1: ['-f', 'best[height<=1080]'],  # Best quality video + audio
+            1: ['-f', 'bestvideo+bestaudio/best'],  # Best quality video + audio (no resolution limit)
             2: ['-x', '--audio-format', 'mp3', '--audio-quality', '192K'],  # Audio MP3
             3: ['-x', '--audio-format', 'best', '--audio-quality', '0'],  # Best audio
-            4: ['-f', 'best[height<=1080]', '--remux-video', 'mp4'],  # Video MP4
+            4: ['-f', 'bestvideo+bestaudio/best', '--remux-video', 'mp4'],  # Video MP4 (no resolution limit)
             5: []  # Custom (will prompt for options)
         }
         return formats.get(choice, [])
