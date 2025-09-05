@@ -16,15 +16,15 @@ class VeloraApp:
         self.progress = ProgressBar()
 
     def show_welcome(self):
+        from .ui.ascii import INFO_MESSAGE
         self.menu.clear_screen()
         print(ascii)
-        print("\nWelcome to Velora, monkey.\n")
+        print(f"\n{INFO_MESSAGE}")
 
     def show_main_menu(self):
-        print("1. Download a video")
-        print("2. Download audio only")
-        print("3. Download playlist")
-        print("4. Settings")
+        print("1. Download Video")
+        print("2. Download Playlist")
+        print("3. Get Thumbnail")
         print()
         print("Choose an Option or do 'q' to exit..", end=" ")
 

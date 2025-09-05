@@ -95,6 +95,7 @@ def gradient_text_selective(text, start_color, end_color, gradient_word, white_p
     
     return "\n".join(result_lines)
 
+
 _ascii_art = """
 ██╗   ██╗███████╗██╗      ██████╗ ██████╗  █████╗
 ██║   ██║██╔════╝██║     ██╔═══██╗██╔══██╗██╔══██╗
@@ -103,6 +104,12 @@ _ascii_art = """
  ╚████╔╝ ███████╗███████╗╚██████╔╝██║  ██║██║  ██║
   ╚═══╝  ╚══════╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
                                     Made by neoarz
+"""
+
+# Info message about supported sites and README link
+INFO_MESSAGE = """
+Supports YouTube, TikTok, Instagram, and more!
+See the full list of supported sites here: https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
 """
 
 _start_rgb = (180, 0, 255)
