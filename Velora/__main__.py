@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from Velora.app import VeloraApp
+from .app import VeloraApp
 
 def main():
     app = VeloraApp()
