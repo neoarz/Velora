@@ -109,7 +109,7 @@ _ascii_art = """
 # Info message about supported sites and README link
 INFO_MESSAGE = """
 Supports YouTube, TikTok, Instagram, and more!
-See the full list of supported sites here: https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
+See the full list of supported sites here: \033[34mhttps://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md\033[0m
 """
 
 _start_rgb = (180, 0, 255)

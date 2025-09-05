@@ -5,9 +5,21 @@ import sys
 import tty
 import termios
 
+try:
+    from rich.console import Console
+    from rich.text import Text
+    from rich.align import Align
+    RICH_AVAILABLE = True
+except Exception:
+    RICH_AVAILABLE = False
+
+
 class Menu:
     def __init__(self):
         self.width = 60
+        if RICH_AVAILABLE:
+            # create a console instance once to reuse
+            self.console = Console()
 
     def clear_screen(self):
         os.system('clear' if os.name == 'posix' else 'cls')
@@ -80,37 +92,72 @@ class Menu:
         """Interactive menu with arrow key navigation"""
         selected = 0
         max_index = len(options) - 1
-        
-        while True:
-            # Clear screen and show header
-            self.clear_screen()
-            
-            # Show ASCII art if requested (for main menu)
-            if show_ascii:
-                from .ascii import ascii, INFO_MESSAGE
-                print(ascii)
-                print(f"\n{INFO_MESSAGE}")
-                print()
-            else:
-                print(f"{title}\n")
-            
-            # Display options with current selection highlighted
-            for i, option in enumerate(options):
-                if i == selected:
-                    print(f"> {option}")
+        # Hide the cursor while the interactive menu is displayed to avoid
+        # seeing the blinking cursor during navigation. Restore it on exit.
+        print("\033[?25l", end="")
+        sys.stdout.flush()
+        try:
+            while True:
+                # Clear screen and show header
+                self.clear_screen()
+                # Always show ASCII art when requested, independent of Rich availability
+                if show_ascii:
+                    from .ascii import ascii, INFO_MESSAGE
+                    # Use plain print so ascii art looks exactly as intended
+                    # Print INFO_MESSAGE without extra leading/trailing blank lines
+                    print(ascii)
+                    print(INFO_MESSAGE)
+                
+                # If Rich is available, render a nicer menu
+                if RICH_AVAILABLE:
+                    # Title as a rule for nicer separation when not showing ascii
+                    if not show_ascii:
+                        self.console.rule(Text(title, style="bold white"))
+
+                    # Render options
+                    for i, option in enumerate(options):
+                        if i == selected:
+                            # Selected option: bright cyan, bold and underlined, prefixed
+                            t = Text("▶ ", style="bold cyan")
+                            t.append(option, style="bold underline bright_cyan")
+                            self.console.print(t)
+                        else:
+                            # Unselected options should be visible (not too dim)
+                            t = Text("  ")
+                            t.append(option, style="white")
+                            self.console.print(t)
+
+                    # Add a single blank line under the options (so there's a small
+                    # visual gap after the last item, e.g. under 'Quit')
+                    self.console.print()
+
+                    # Instructions (single dim line)
+                    self.console.print(Text("Use ↑/↓ arrow keys to navigate, Enter to select", style="dim"))
+
+                    # Get user input (same key handling)
+                    key = self.get_key()
                 else:
-                    print(f"  {option}")
-            
-            print("\nUse ↑/↓ arrow keys to navigate, Enter to select")
-            
-            # Get user input
-            key = self.get_key()
-            
-            if key == '\x1b[A':  # Up arrow
-                selected = max(0, selected - 1)
-            elif key == '\x1b[B':  # Down arrow
-                selected = min(max_index, selected + 1)
-            elif key == '\r' or key == '\n':  # Enter
-                return selected
-            elif key == '\x03':  # Ctrl+C
-                raise KeyboardInterrupt
+                    # Plain fallback: show title and options without extra spacing
+                    print(f"{title}\n")
+                    for i, option in enumerate(options):
+                        if i == selected:
+                            print(f"▶ {option}")
+                        else:
+                            print(f"  {option}")
+                    # Single blank line under the options
+                    print()
+                    print("Use ↑/↓ arrow keys to navigate, Enter to select")
+                    key = self.get_key()
+
+                if key == '\x1b[A':  # Up arrow
+                    selected = max(0, selected - 1)
+                elif key == '\x1b[B':  # Down arrow
+                    selected = min(max_index, selected + 1)
+                elif key == '\r' or key == '\n':  # Enter
+                    return selected
+                elif key == '\x03':  # Ctrl+C
+                    raise KeyboardInterrupt
+        finally:
+            # Always show the cursor again when leaving the menu
+            print("\033[?25h", end="")
+            sys.stdout.flush()
