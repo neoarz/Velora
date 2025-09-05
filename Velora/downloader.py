@@ -17,7 +17,7 @@ class Downloader:
             './yt-dlp',
             '/usr/local/bin/yt-dlp',
             '/usr/bin/yt-dlp',
-            'yt-dlp.exe',  # Windows
+            'yt-dlp.exe',  
         ]
 
         for path in common_paths:
