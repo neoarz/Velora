@@ -61,7 +61,7 @@ class Downloader:
         download_dir.mkdir(parents=True, exist_ok=True)
         return download_dir
 
-    def download_with_options(self, url, resolution="best", include_audio=True, output_format="mp4"):
+    def download_with_options(self, url, resolution="best", include_audio=True, output_format="mp4", audio_only=False):
         """Download video with specific resolution, audio, and format options"""
         try:
             # Validate URL before attempting download
@@ -70,6 +70,10 @@ class Downloader:
                 return False
             
             download_dir = self._create_download_dir()
+            
+            # Handle audio-only downloads
+            if audio_only:
+                return self._download_audio_only(url, download_dir, output_format)
             
             # Build format string based on options
             format_opts = self._build_format_string(resolution, include_audio, output_format)
@@ -123,6 +127,48 @@ class Downloader:
 
         except Exception as e:
             print(f"\n[ERROR] Error during download: {e}")
+            return False
+
+    def _download_audio_only(self, url, download_dir, audio_format="mp3"):
+        """Download audio only from video"""
+        try:
+            # Base command for audio extraction
+            cmd = [
+                self.yt_dlp_path,
+                '--no-playlist',  # Download single video
+                '-x',  # Extract audio
+                '--audio-format', audio_format,
+                '--audio-quality', '192K',  # Good quality
+                '-o', str(download_dir / '%(title)s.%(ext)s'),  # Output template
+                '--progress',
+                '--no-warnings',
+                url
+            ]
+
+            print(f"Downloading audio to: {download_dir}")
+            print(f"URL: {url}")
+            print(f"Format: {audio_format.upper()}")
+            print("Starting audio download...\n")
+
+            # Run yt-dlp
+            result = subprocess.run(
+                cmd,
+                cwd=str(download_dir),
+                capture_output=False,  # Show progress in real-time
+                text=True
+            )
+
+            if result.returncode == 0:
+                print("\n[SUCCESS] Audio download completed successfully!")
+                self._show_download_info(download_dir)
+                return True
+            else:
+                print(f"\n[ERROR] Audio download failed with exit code: {result.returncode}")
+                print("[ERROR] Download failed. Please check the URL and try again.")
+                return False
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during audio download: {e}")
             return False
 
     def _convert_to_mov(self, download_dir):

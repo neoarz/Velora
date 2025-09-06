@@ -147,7 +147,6 @@ class VeloraApp:
             break
 
     def handle_download_audio(self):
-        print("\nDownload Audio Only Selected")
         while True:
             url = self.get_url_input()
             if not url:
@@ -174,7 +173,12 @@ class VeloraApp:
                         return
             
             # If we got here, video info was successful
-            success = self.downloader.download(url, 2)  # Audio only MP3
+            # Download audio only as MP3 with best quality
+            success = self.downloader.download_with_options(
+                url=url,
+                audio_only=True,
+                output_format="mp3"
+            )
             if success:
                 self.menu.print_success("Audio download completed successfully!")
             else:
@@ -182,7 +186,6 @@ class VeloraApp:
             break
 
     def handle_download_playlist(self):
-        print("\nDownload Playlist Selected")
         print("Playlist functionality coming soon!")
 
     def ask_continue(self):
