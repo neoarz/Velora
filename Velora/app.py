@@ -136,12 +136,10 @@ class VeloraApp:
             # Ask if user wants to include audio
             include_audio = self.menu.ask_include_audio()
             
-            print(f"\nStarting download...")
-            print(f"   URL: {url}")
-            print(f"   Resolution: {resolution}")
-            print(f"   Audio: {'Yes' if include_audio else 'No'}")
-            print()
-            success = self.downloader.download_with_options(url, resolution, include_audio)
+            # Ask for output format
+            output_format = self.menu.select_format()
+            
+            success = self.downloader.download_with_options(url, resolution, include_audio, output_format)
             if success:
                 self.menu.print_success("Download completed successfully!")
             else:
@@ -176,10 +174,6 @@ class VeloraApp:
                         return
             
             # If we got here, video info was successful
-            # Show a divider and start audio download without clearing the screen
-            print(f"\nStarting audio download...")
-            print(f"   URL: {url}")
-            print()
             success = self.downloader.download(url, 2)  # Audio only MP3
             if success:
                 self.menu.print_success("Audio download completed successfully!")

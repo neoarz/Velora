@@ -4,11 +4,13 @@ import subprocess
 import os
 import sys
 from pathlib import Path
+from .ffmpeg_utils import FFmpegUtils
 
 class Downloader:
     def __init__(self, config):
         self.config = config
         self.yt_dlp_path = self._find_yt_dlp()
+        self.ffmpeg = FFmpegUtils()
 
     def _find_yt_dlp(self):
         # Try common locations
@@ -58,8 +60,8 @@ class Downloader:
         download_dir.mkdir(parents=True, exist_ok=True)
         return download_dir
 
-    def download_with_options(self, url, resolution="best", include_audio=True):
-        """Download video with specific resolution and audio options"""
+    def download_with_options(self, url, resolution="best", include_audio=True, output_format="mp4"):
+        """Download video with specific resolution, audio, and format options"""
         try:
             # Validate URL before attempting download
             if not self._is_valid_url(url):
@@ -69,7 +71,7 @@ class Downloader:
             download_dir = self._create_download_dir()
             
             # Build format string based on options
-            format_opts = self._build_format_string(resolution, include_audio)
+            format_opts = self._build_format_string(resolution, include_audio, output_format)
 
             # Base command
             cmd = [
@@ -91,6 +93,7 @@ class Downloader:
             print(f"URL: {url}")
             print(f"Resolution: {resolution}")
             print(f"Audio: {'Yes' if include_audio else 'No'}")
+            print(f"Format: {output_format.upper()}")
             print("Starting download...\n")
 
             # Run yt-dlp
@@ -123,78 +126,35 @@ class Downloader:
             print(f"\n[ERROR] Error during download: {e}")
             return False
 
-    def _build_format_string(self, resolution, include_audio):
-        """Build yt-dlp format string based on resolution and audio preferences"""
+    def _build_format_string(self, resolution, include_audio, output_format="mp4"):
+        """Build yt-dlp format string based on resolution, audio preferences, and output format"""
+        # Build format selection based on resolution and audio
         if resolution == "best":
             if include_audio:
-                return ['-f', 'bestvideo+bestaudio/best']
+                format_string = 'bestvideo+bestaudio/best'
             else:
-                return ['-f', 'bestvideo']
+                format_string = 'bestvideo'
         else:
             # Specific resolution (1080p, 720p, 480p, 360p, 144p)
             height = resolution.replace('p', '')
             if include_audio:
-                return ['-f', f'bestvideo[height<={height}]+bestaudio/best[height<={height}]']
+                format_string = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]'
             else:
-                return ['-f', f'bestvideo[height<={height}]']
-        try:
-            # Validate URL before attempting download
-            if not self._is_valid_url(url):
-                print("[ERROR] Invalid video URL. Please check the URL and try again.")
-                return False
-            
-            download_dir = self._create_download_dir()
-            format_opts = self._get_format_options(format_choice)
-
-            # Base command
-            cmd = [
-                self.yt_dlp_path,
-                '--no-playlist',  # Download single video
-                '-o', str(download_dir / '%(title)s.%(ext)s'),  # Output template
-                '--progress',
-                '--no-warnings',
-            ]
-
-            # Add format options
-            if format_opts:
-                cmd.extend(format_opts)
-
-            # Add URL
-            cmd.append(url)
-
-            print(f"Downloading to: {download_dir}")
-            print(f"URL: {url}")
-            print("Starting download...\n")
-
-            # Run yt-dlp
-            result = subprocess.run(
-                cmd,
-                cwd=str(download_dir),
-                capture_output=False,  # Show progress in real-time
-                text=True
-            )
-
-            if result.returncode == 0:
-                print("\n[SUCCESS] Download completed successfully!")
-                self._show_download_info(download_dir)
-                return True
+                format_string = f'bestvideo[height<={height}]'
+        
+        # Build command options
+        cmd_opts = ['-f', format_string]
+        
+        # Add format conversion if needed
+        if output_format and output_format.lower() != 'webm':
+            # Use --remux-video for container format conversion (no re-encoding)
+            if output_format.lower() in ['mp4', 'mkv', 'avi', 'mov']:
+                cmd_opts.extend(['--remux-video', output_format.lower()])
             else:
-                print(f"\n[ERROR] Download failed with exit code: {result.returncode}")
-                if result.stderr:
-                    error_msg = result.stderr.strip()
-                    if "is not a valid URL" in error_msg or "Unsupported URL" in error_msg:
-                        print("[ERROR] Invalid video URL. Please check the URL and try again.")
-                    elif "Video unavailable" in error_msg or "Private video" in error_msg:
-                        print("[ERROR] Video is unavailable or private. Please try a different URL.")
-                    elif "not found" in error_msg or "404" in error_msg:
-                        print("[ERROR] Video not found. Please check the URL and try again.")
-                    else:
-                        print(f"Error: {error_msg}")
-                return False
-
-        except Exception as e:
-            print(f"\n[ERROR] Error during download: {e}")
-            return False
+                # For other formats, use --recode-video (re-encoding)
+                cmd_opts.extend(['--recode-video', output_format.lower()])
+        
+        return cmd_opts
 
     def _show_download_info(self, download_dir):
         try:
@@ -340,3 +300,132 @@ class Downloader:
         
         # If no match, capitalize the extractor name
         return extractor.capitalize()
+
+    def post_process_video(self, file_path, operation, **kwargs):
+        """Post-process downloaded video using FFmpeg"""
+        if not self.ffmpeg.is_available():
+            print("[WARNING] FFmpeg not available. Skipping post-processing.")
+            return False
+        
+        file_path = Path(file_path)
+        if not file_path.exists():
+            print(f"[ERROR] File not found: {file_path}")
+            return False
+        
+        if operation == 'convert':
+            output_path = file_path.with_suffix(f".{kwargs.get('format', 'mp4')}")
+            return self.ffmpeg.convert_video(
+                str(file_path), str(output_path),
+                codec=kwargs.get('codec', 'libx264'),
+                quality=kwargs.get('quality', 'medium')
+            )
+        
+        elif operation == 'extract_audio':
+            output_path = file_path.with_suffix(f".{kwargs.get('format', 'mp3')}")
+            return self.ffmpeg.extract_audio(
+                str(file_path), str(output_path),
+                format=kwargs.get('format', 'mp3'),
+                quality=kwargs.get('quality', '192k')
+            )
+        
+        elif operation == 'resize':
+            output_path = file_path.with_stem(f"{file_path.stem}_resized")
+            return self.ffmpeg.resize_video(
+                str(file_path), str(output_path),
+                width=kwargs.get('width', 1280),
+                height=kwargs.get('height'),
+                maintain_aspect=kwargs.get('maintain_aspect', True)
+            )
+        
+        elif operation == 'trim':
+            output_path = file_path.with_stem(f"{file_path.stem}_trimmed")
+            return self.ffmpeg.trim_video(
+                str(file_path), str(output_path),
+                start_time=kwargs.get('start_time', '0'),
+                duration=kwargs.get('duration'),
+                end_time=kwargs.get('end_time')
+            )
+        
+        elif operation == 'thumbnail':
+            output_path = file_path.with_suffix('.jpg')
+            return self.ffmpeg.get_thumbnail(
+                str(file_path), str(output_path),
+                time=kwargs.get('time', '00:00:01')
+            )
+        
+        elif operation == 'gif':
+            output_path = file_path.with_suffix('.gif')
+            return self.ffmpeg.create_gif(
+                str(file_path), str(output_path),
+                start_time=kwargs.get('start_time', '0'),
+                duration=kwargs.get('duration', '10'),
+                fps=kwargs.get('fps', 15),
+                width=kwargs.get('width', 320)
+            )
+        
+        else:
+            print(f"[ERROR] Unknown operation: {operation}")
+            return False
+    
+    def get_detailed_video_info(self, file_path):
+        """Get detailed video information using FFmpeg"""
+        if not self.ffmpeg.is_available():
+            print("[WARNING] FFmpeg not available. Limited video info.")
+            return {}
+        
+        return self.ffmpeg.get_video_info(file_path)
+    
+    def batch_process_videos(self, directory, operation, **kwargs):
+        """Batch process all videos in a directory"""
+        directory = Path(directory)
+        if not directory.exists():
+            print(f"[ERROR] Directory not found: {directory}")
+            return False
+        
+        video_extensions = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm'}
+        video_files = [f for f in directory.iterdir() 
+                      if f.suffix.lower() in video_extensions]
+        
+        if not video_files:
+            print(f"[INFO] No video files found in: {directory}")
+            return True
+        
+        print(f"[INFO] Processing {len(video_files)} video files...")
+        
+        success_count = 0
+        for video_file in video_files:
+            print(f"Processing: {video_file.name}")
+            if self.post_process_video(video_file, operation, **kwargs):
+                success_count += 1
+        
+        print(f"[INFO] Successfully processed {success_count}/{len(video_files)} files")
+        return success_count == len(video_files)
+    
+    def optimize_for_web(self, file_path, target_size_mb=None):
+        """Optimize video for web streaming"""
+        if not self.ffmpeg.is_available():
+            print("[WARNING] FFmpeg not available. Cannot optimize for web.")
+            return False
+        
+        file_path = Path(file_path)
+        output_path = file_path.with_stem(f"{file_path.stem}_web")
+        
+        # Get video info to calculate optimal settings
+        info = self.get_detailed_video_info(str(file_path))
+        if not info:
+            print("[WARNING] Could not get video info for optimization")
+            return False
+        
+        # Calculate target bitrate if size limit is specified
+        if target_size_mb and 'duration' in info:
+            target_bitrate = int((target_size_mb * 8 * 1024) / info['duration']) # kbps
+            target_bitrate = max(target_bitrate, 500)  # Minimum 500kbps
+        else:
+            target_bitrate = 2000  # Default 2Mbps
+        
+        # Optimize settings for web
+        return self.ffmpeg.convert_video(
+            str(file_path), str(output_path),
+            codec='libx264',
+            quality='medium'
+        )
