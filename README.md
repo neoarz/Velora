@@ -15,8 +15,42 @@ A beautiful terminal wrapper for yt-dlp with an easy-to-use interface.
 
 - Python 3.8 or higher
 - pip (Python package installer)
+- FFmpeg (required for video format conversion)
 
-### Windows
+### Step 1: Install FFmpeg
+
+FFmpeg is required for video format conversion and processing.
+
+#### Windows
+
+1. Download FFmpeg from https://ffmpeg.org/download.html#build-windows
+2. Extract the zip file to a folder (e.g., `C:\ffmpeg`)
+3. Add FFmpeg to your system PATH:
+   - Open System Properties > Environment Variables
+   - Add the FFmpeg bin folder to your PATH variable
+   - Test by opening Command Prompt and running: `ffmpeg -version`
+
+#### macOS
+
+Using Homebrew (recommended):
+```
+brew install ffmpeg
+```
+
+Or download from https://ffmpeg.org/download.html#build-mac
+
+#### Linux (Ubuntu/Debian)
+
+```
+sudo apt update
+sudo apt install ffmpeg
+```
+
+For other Linux distributions, use your package manager or download from https://ffmpeg.org/download.html
+
+### Step 2: Install Velora
+
+#### Windows
 
 1. Open Command Prompt or PowerShell
 2. Clone or download the repository:
@@ -40,7 +74,7 @@ A beautiful terminal wrapper for yt-dlp with an easy-to-use interface.
    pip install -r requirements.txt
    ```
 
-### macOS
+#### macOS
 
 1. Open Terminal
 2. Clone or download the repository:
@@ -64,7 +98,7 @@ A beautiful terminal wrapper for yt-dlp with an easy-to-use interface.
    pip install -r requirements.txt
    ```
 
-### Linux
+#### Linux
 
 1. Open your terminal
 2. Clone or download the repository:
@@ -109,9 +143,14 @@ python -m Velora
 
 - Beautiful gradient ASCII art
 - Real-time download progress
-- Multiple format options
+- Multiple format options (MP4, MOV, MKV, AVI, and more)
+- Video format conversion using FFmpeg
+- Audio extraction (MP3, AAC, FLAC)
 - Video information preview
+- Playlist download support
 - Error handling with helpful messages
+- Automatic quality selection or custom resolution
+- Post-processing options (trim, resize, thumbnail extraction)
 
 ## Supported Platforms
 
@@ -124,6 +163,13 @@ Velora can download content from:
 - And many more (any site supported by yt-dlp)
 
 ## Troubleshooting
+
+### FFmpeg Issues
+
+If you get errors related to video conversion:
+- Verify FFmpeg is installed: `ffmpeg -version`
+- On Windows, ensure FFmpeg is in your system PATH
+- On Linux/macOS, try reinstalling FFmpeg through your package manager
 
 ### Virtual Environment Issues
 
@@ -149,6 +195,14 @@ If installation fails:
 - Update pip: `pip install --upgrade pip`
 - Install wheel: `pip install wheel`
 - Try installing in a fresh virtual environment
+
+### Download Issues
+
+If downloads fail:
+- Check your internet connection
+- Verify the URL is correct and accessible
+- Some videos may be region-restricted or private
+- Try a different video format if conversion fails
 
 ## Contributing
 

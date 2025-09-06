@@ -3,6 +3,7 @@
 import subprocess
 import os
 import sys
+import ffmpeg
 from pathlib import Path
 from .ffmpeg_utils import FFmpegUtils
 
@@ -106,25 +107,98 @@ class Downloader:
 
             if result.returncode == 0:
                 print("\n[SUCCESS] Download completed successfully!")
+                
+                # Handle MOV format post-processing if needed
+                if hasattr(self, '_desired_format') and self._desired_format == 'mov':
+                    success = self._convert_to_mov(download_dir)
+                    if not success:
+                        print("[WARNING] MOV conversion failed, but original download succeeded")
+                
                 self._show_download_info(download_dir)
                 return True
             else:
                 print(f"\n[ERROR] Download failed with exit code: {result.returncode}")
-                if result.stderr:
-                    error_msg = result.stderr.strip()
-                    if "is not a valid URL" in error_msg or "Unsupported URL" in error_msg:
-                        print("[ERROR] Invalid video URL. Please check the URL and try again.")
-                    elif "Video unavailable" in error_msg or "Private video" in error_msg:
-                        print("[ERROR] Video is unavailable or private. Please try a different URL.")
-                    elif "not found" in error_msg or "404" in error_msg:
-                        print("[ERROR] Video not found. Please check the URL and try again.")
-                    else:
-                        print(f"Error: {error_msg}")
+                print("[ERROR] Download failed. Please check the URL and try again.")
                 return False
 
         except Exception as e:
             print(f"\n[ERROR] Error during download: {e}")
             return False
+
+    def _convert_to_mov(self, download_dir):
+        """Convert downloaded MP4 files to MOV format using FFmpeg"""
+        try:
+            # Find the most recently downloaded MP4 file
+            mp4_files = list(download_dir.glob("*.mp4"))
+            if not mp4_files:
+                print("[WARNING] No MP4 file found for MOV conversion")
+                return False
+            
+            # Get the most recent file
+            latest_mp4 = max(mp4_files, key=lambda x: x.stat().st_mtime)
+            mov_path = latest_mp4.with_suffix('.mov')
+            
+            print(f"Converting {latest_mp4.name} to MOV format...")
+            
+            # Use FFmpeg for conversion
+            if self.ffmpeg.is_available():
+                success = self._ffmpeg_convert_to_mov(str(latest_mp4), str(mov_path))
+                if success:
+                    # Remove the original MP4 file
+                    latest_mp4.unlink()
+                    print(f"[SUCCESS] Converted to {mov_path.name}")
+                    return True
+                else:
+                    print("[ERROR] FFmpeg conversion to MOV failed")
+                    return False
+            else:
+                print("[ERROR] FFmpeg not available for MOV conversion")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] MOV conversion failed: {e}")
+            return False
+
+    def _ffmpeg_convert_to_mov(self, input_path, output_path):
+        """Convert video to MOV format using FFmpeg with proper codec settings"""
+        try:
+            # Use stream copy for fast conversion when possible
+            # MOV container typically works well with H.264 video and AAC audio
+            stream = ffmpeg.input(input_path)
+            stream = ffmpeg.output(
+                stream, 
+                output_path,
+                vcodec='copy',  # Copy video stream without re-encoding
+                acodec='copy',  # Copy audio stream without re-encoding
+                movflags='faststart'  # Optimize for web streaming
+            )
+            
+            ffmpeg.run(stream, overwrite_output=True, quiet=True)
+            return True
+            
+        except Exception as e:
+            # Stream copy failed, this is normal for some videos
+            print("[INFO] Fast conversion not possible, re-encoding video for MOV compatibility...")
+            
+            # Fallback: Re-encode with H.264 and AAC (more compatible)
+            try:
+                stream = ffmpeg.input(input_path)
+                stream = ffmpeg.output(
+                    stream, 
+                    output_path,
+                    vcodec='libx264',
+                    acodec='aac',
+                    crf=23,  # Good quality
+                    preset='medium',
+                    movflags='faststart'
+                )
+                
+                ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                return True
+                
+            except Exception as e2:
+                print(f"[ERROR] FFmpeg MOV conversion failed: {e2}")
+                return False
 
     def _build_format_string(self, resolution, include_audio, output_format="mp4"):
         """Build yt-dlp format string based on resolution, audio preferences, and output format"""
@@ -145,10 +219,14 @@ class Downloader:
         # Build command options
         cmd_opts = ['-f', format_string]
         
-        # Add format conversion if needed
-        if output_format and output_format.lower() != 'webm':
+        # Store the desired output format for post-processing
+        self._desired_format = output_format.lower() if output_format else 'mp4'
+        
+        # For MOV format, don't use --remux-video as it often fails
+        # We'll handle MOV conversion using FFmpeg post-processing instead
+        if output_format and output_format.lower() != 'webm' and output_format.lower() != 'mov':
             # Use --remux-video for container format conversion (no re-encoding)
-            if output_format.lower() in ['mp4', 'mkv', 'avi', 'mov']:
+            if output_format.lower() in ['mp4', 'mkv', 'avi']:
                 cmd_opts.extend(['--remux-video', output_format.lower()])
             else:
                 # For other formats, use --recode-video (re-encoding)
