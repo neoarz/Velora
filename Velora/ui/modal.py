@@ -24,11 +24,18 @@ class Modal:
     def show_url_input_modal(self):
         """Simple modal for URL input"""
         if RICH_AVAILABLE:
-            return self._show_rich_modal()
+            return self._show_rich_modal("Enter URL Below", "Paste your video URL and press Enter")
         else:
-            return self._show_simple_modal()
+            return self._show_simple_modal("Enter URL Below", "Paste your video URL and press Enter")
     
-    def _show_rich_modal(self):
+    def show_playlist_url_input_modal(self):
+        """Simple modal for playlist URL input"""
+        if RICH_AVAILABLE:
+            return self._show_rich_modal("Enter Playlist URL Below", "Paste your playlist URL and press Enter")
+        else:
+            return self._show_simple_modal("Enter Playlist URL Below", "Paste your playlist URL and press Enter")
+    
+    def _show_rich_modal(self, title_text="Enter URL Below", hint_text="Paste your video URL and press Enter"):
         """Rich version of the modal - modern style"""
         from rich.panel import Panel
         from rich.text import Text
@@ -38,8 +45,8 @@ class Modal:
         # Add some vertical space
         self.console.print("\n\n")
         # Title and hint
-        title = Text("Enter URL Below", style="bold white")
-        hint = Text("Paste your video URL and press Enter", style="dim white")
+        title = Text(title_text, style="bold white")
+        hint = Text(hint_text, style="dim white")
         # Build modal content using Group
         modal_content = Group(
             Align.left(Text("\n"), vertical="top"),
@@ -52,16 +59,14 @@ class Modal:
         url = self.console.input("[bold bright_blue]> [/bold bright_blue]")
         return url.strip() if url else None
     
-    def _show_simple_modal(self):
+    def _show_simple_modal(self, title_text="Enter URL Below", hint_text="Paste your video URL and press Enter"):
         """Fallback version without Rich - modern input style"""
         # Add some vertical space
         print("\n\n")
         width = 64
-        title = "Enter URL Below"
-        hint = "Paste your video URL and press Enter"
         # Centered title and hint
-        print(title.center(width))
-        print(hint.center(width))
+        print(title_text.center(width))
+        print(hint_text.center(width))
         # Input prompt below
         url = input("> ").strip()
         return url if url else None

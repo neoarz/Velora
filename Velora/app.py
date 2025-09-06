@@ -42,6 +42,9 @@ class VeloraApp:
 
     def get_url_input(self):
         return self.modal.show_url_input_modal()
+    
+    def get_playlist_url_input(self):
+        return self.modal.show_playlist_url_input_modal()
 
     def show_download_options(self, clear_screen=True):
         options = [
@@ -187,7 +190,7 @@ class VeloraApp:
 
     def handle_download_playlist(self):
         while True:
-            url = self.get_url_input()
+            url = self.get_playlist_url_input()
             if not url:
                 self.menu.print_warning("No URL provided. Returning to main menu.")
                 return
