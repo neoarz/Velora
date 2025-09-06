@@ -214,3 +214,25 @@ class Menu:
         
         choice = self.interactive_menu(options, "Include audio with video?", clear_screen=False, show_instructions=False)
         return choice == 0  # Return True for "Yes", False for "No"
+
+    def select_format(self):
+        """Interactive menu for format selection"""
+        options = [
+            "MP4",
+            "MKV",
+            "WEBM",
+            "AVI",
+            "MOV"
+        ]
+        
+        choice = self.interactive_menu(options, "Select output format", clear_screen=False, show_instructions=False)
+        
+        format_map = {
+            0: "mp4",
+            1: "mkv", 
+            2: "webm",
+            3: "avi",
+            4: "mov"
+        }
+        
+        return format_map.get(choice, "mp4")
