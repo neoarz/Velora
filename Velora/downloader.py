@@ -553,3 +553,170 @@ class Downloader:
             codec='libx264',
             quality='medium'
         )
+
+    def get_playlist_info(self, url):
+        """Get playlist information"""
+        try:
+            # Basic URL validation
+            if not self._is_valid_url(url):
+                return {'error': 'invalid_url', 'message': 'Invalid playlist URL. Please check the URL and try again.'}
+            
+            cmd = [
+                self.yt_dlp_path,
+                '--flat-playlist',
+                '--print-json',
+                '--no-warnings',
+                url
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            import json
+            lines = result.stdout.strip().split('\n')
+            if not lines or not lines[0]:
+                return {'error': 'empty', 'message': 'No playlist information found.'}
+            
+            # Get first entry for playlist info
+            first_entry = json.loads(lines[0])
+            
+            # Count total videos
+            video_count = len([line for line in lines if line.strip()])
+            
+            # Extract platform/source information
+            platform = self._get_platform_from_url(url)
+            if not platform:
+                platform = 'Unknown'
+            
+            return {
+                'title': first_entry.get('playlist_title', first_entry.get('title', 'Unknown Playlist')),
+                'video_count': video_count,
+                'uploader': first_entry.get('uploader', first_entry.get('channel', 'Unknown')),
+                'platform': platform
+            }
+
+        except subprocess.CalledProcessError as e:
+            if e.stderr:
+                error_msg = e.stderr.strip()
+                if "is not a valid URL" in error_msg or "Unsupported URL" in error_msg:
+                    return {'error': 'invalid_url', 'message': 'Invalid playlist URL. Please check the URL and try again.'}
+                elif "Private" in error_msg or "unavailable" in error_msg:
+                    return {'error': 'unavailable', 'message': 'Playlist is unavailable or private. Please try a different URL.'}
+                else:
+                    return {'error': 'unknown', 'message': f'Could not access playlist: {error_msg}'}
+            return {'error': 'unknown', 'message': 'Could not get playlist info. Please check the URL and try again.'}
+        except Exception as e:
+            return {'error': 'unknown', 'message': f'Could not get playlist info: {str(e)}'}
+
+    def download_playlist(self, url, download_type="video"):
+        """Download entire playlist"""
+        try:
+            # Validate URL before attempting download
+            if not self._is_valid_url(url):
+                print("[ERROR] Invalid playlist URL. Please check the URL and try again.")
+                return False
+            
+            download_dir = self._create_download_dir()
+            
+            # Create playlist-specific subdirectory
+            playlist_dir = download_dir / "Playlists" / f"playlist_{int(__import__('time').time())}"
+            playlist_dir.mkdir(parents=True, exist_ok=True)
+            
+            if download_type == "audio":
+                return self._download_playlist_audio(url, playlist_dir)
+            elif download_type == "custom":
+                return self._download_playlist_custom(url, playlist_dir)
+            else:  # video
+                return self._download_playlist_video(url, playlist_dir)
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during playlist download: {e}")
+            return False
+
+    def _download_playlist_video(self, url, playlist_dir):
+        """Download playlist as videos"""
+        try:
+            cmd = [
+                self.yt_dlp_path,
+                '--yes-playlist',
+                '-f', 'bestvideo+bestaudio/best',
+                '--remux-video', 'mp4',
+                '-o', str(playlist_dir / '%(playlist_index)s - %(title)s.%(ext)s'),
+                '--progress',
+                '--no-warnings',
+                url
+            ]
+
+            print(f"Downloading playlist videos to: {playlist_dir}")
+            print(f"URL: {url}")
+            print("Format: MP4")
+            print("Starting playlist download...\n")
+
+            result = subprocess.run(
+                cmd,
+                cwd=str(playlist_dir),
+                capture_output=False,
+                text=True
+            )
+
+            if result.returncode == 0:
+                print("\n[SUCCESS] Playlist video download completed successfully!")
+                self._show_download_info(playlist_dir)
+                return True
+            else:
+                print(f"\n[ERROR] Playlist download failed with exit code: {result.returncode}")
+                return False
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during playlist video download: {e}")
+            return False
+
+    def _download_playlist_audio(self, url, playlist_dir):
+        """Download playlist as audio only"""
+        try:
+            cmd = [
+                self.yt_dlp_path,
+                '--yes-playlist',
+                '-x',
+                '--audio-format', 'mp3',
+                '--audio-quality', '192K',
+                '-o', str(playlist_dir / '%(playlist_index)s - %(title)s.%(ext)s'),
+                '--progress',
+                '--no-warnings',
+                url
+            ]
+
+            print(f"Downloading playlist audio to: {playlist_dir}")
+            print(f"URL: {url}")
+            print("Format: MP3")
+            print("Starting playlist audio download...\n")
+
+            result = subprocess.run(
+                cmd,
+                cwd=str(playlist_dir),
+                capture_output=False,
+                text=True
+            )
+
+            if result.returncode == 0:
+                print("\n[SUCCESS] Playlist audio download completed successfully!")
+                self._show_download_info(playlist_dir)
+                return True
+            else:
+                print(f"\n[ERROR] Playlist audio download failed with exit code: {result.returncode}")
+                return False
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during playlist audio download: {e}")
+            return False
+
+    def _download_playlist_custom(self, url, playlist_dir):
+        """Download playlist with custom options"""
+        # For now, default to video download
+        # This can be expanded later to ask for custom format options
+        print("[INFO] Custom format selection not yet implemented. Using MP4 video format.")
+        return self._download_playlist_video(url, playlist_dir)

@@ -186,7 +186,65 @@ class VeloraApp:
             break
 
     def handle_download_playlist(self):
-        print("Playlist functionality coming soon!")
+        while True:
+            url = self.get_url_input()
+            if not url:
+                self.menu.print_warning("No URL provided. Returning to main menu.")
+                return
+            
+            # Check if it's a playlist URL
+            if not self._is_playlist_url(url):
+                self.menu.print_error("This doesn't appear to be a playlist URL. Please check and try again.")
+                retry = self.menu.confirm_action("Would you like to try with a different URL?")
+                if retry:
+                    continue
+                else:
+                    return
+            
+            # Get playlist info
+            playlist_info = self.get_playlist_info(url)
+            if playlist_info and 'error' in playlist_info:
+                self.menu.print_error(playlist_info.get('message', 'Could not access playlist.'))
+                retry = self.menu.confirm_action("Would you like to try with a different URL?")
+                if retry:
+                    continue
+                else:
+                    return
+            
+            # Show playlist options
+            download_type = self.menu.select_playlist_type()
+            if download_type is None:
+                return
+            
+            # Start playlist download
+            success = self.downloader.download_playlist(url, download_type)
+            if success:
+                self.menu.print_success("Playlist download completed successfully!")
+            else:
+                self.menu.print_error("Playlist download failed. Please check the URL and try again.")
+            break
 
     def ask_continue(self):
         return self.menu.confirm_action("Return to main menu?")
+    
+    def _is_playlist_url(self, url):
+        """Check if URL appears to be a playlist"""
+        playlist_indicators = [
+            'playlist', 'list=', 'album', 'mix', 'set',
+            'channel', 'user/', 'c/', '@'
+        ]
+        url_lower = url.lower()
+        return any(indicator in url_lower for indicator in playlist_indicators)
+    
+    def get_playlist_info(self, url):
+        """Get basic playlist information"""
+        try:
+            info = self.downloader.get_playlist_info(url)
+            if info and 'error' not in info:
+                # Display playlist info using modal
+                self.modal.show_playlist_info_modal(info)
+            return info
+        except Exception as e:
+            error_info = {'error': 'unknown', 'message': f'Could not get playlist info: {str(e)}'}
+            self.modal.show_playlist_info_modal(error_info)
+            return error_info
