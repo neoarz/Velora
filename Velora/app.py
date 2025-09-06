@@ -219,8 +219,20 @@ class VeloraApp:
             if download_type is None:
                 return
             
-            # Start playlist download
-            success = self.downloader.download_playlist(url, download_type)
+            # If video download is selected, ask for additional options
+            if download_type == "video":
+                resolution = self.menu.select_resolution()
+                include_audio = self.menu.ask_include_audio()
+                output_format = self.menu.select_format()
+                
+                # Start playlist download with options
+                success = self.downloader.download_playlist_with_options(
+                    url, download_type, resolution, include_audio, output_format
+                )
+            else:
+                # For audio or custom, use simple download
+                success = self.downloader.download_playlist(url, download_type)
+            
             if success:
                 self.menu.print_success("Playlist download completed successfully!")
             else:
