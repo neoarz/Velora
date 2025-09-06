@@ -18,7 +18,6 @@ class Menu:
     def __init__(self):
         self.width = 60
         if RICH_AVAILABLE:
-            # create a console instance once to reuse
             self.console = Console()
 
     def clear_screen(self):
@@ -71,96 +70,69 @@ class Menu:
             print("Please enter 'y' or 'n'")
 
     def clear_last_lines(self, num_lines):
-        """Clear the last n lines from the terminal"""
         for _ in range(num_lines):
-            # Move cursor up one line and clear it
             print("\033[F\033[K", end="")
 
     def get_key(self):
-        """Get a single keypress from the user"""
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
             tty.setraw(sys.stdin.fileno())
             ch = sys.stdin.read(1)
-            if ch == '\x1b':  # ESC sequence
+            if ch == '\x1b':
                 ch += sys.stdin.read(2)
             return ch
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
     def interactive_menu(self, options, title="Select an option", show_ascii=False, clear_screen=True, show_instructions=True):
-        """Interactive menu with arrow key navigation"""
         selected = 0
         max_index = len(options) - 1
-        # Track how many menu lines we printed last loop so that when
-        # clear_screen is False we only erase the menu area and leave
-        # the ASCII header / modal intact.
         prev_printed_lines = 0
-        # Hide the cursor while the interactive menu is displayed to avoid
-        # seeing the blinking cursor during navigation. Restore it on exit.
         print("\033[?25l", end="")
         sys.stdout.flush()
         try:
             while True:
-                # Clear screen and show header (optional)
                 if clear_screen:
-                    # Full clear requested: wipe everything and reset tracking
                     self.clear_screen()
                     prev_printed_lines = 0
                 else:
-                    # Partial redraw: only clear the previous menu lines we printed
                     if prev_printed_lines:
                         self.clear_last_lines(prev_printed_lines)
 
-                # Always show ASCII art when requested, independent of Rich availability
                 if show_ascii:
                     from .ascii import ascii, INFO_MESSAGE
-                    # Use plain print so ascii art looks exactly as intended
-                    # Print INFO_MESSAGE without extra leading/trailing blank lines
                     print(ascii)
                     print(INFO_MESSAGE)
 
-                # If Rich is available, render a nicer menu
                 if RICH_AVAILABLE:
-                    # Print a simple title (avoid long rule/divider which caused visual reloads)
                     if not show_ascii:
                         self.console.print(Text(title, style="bold white"))
 
-                    # Render options
                     for i, option in enumerate(options):
                         if i == selected:
-                            # Selected option: bright cyan, bold and underlined, prefixed
                             t = Text("▶ ", style="bold cyan")
                             t.append(option, style="bold underline bright_cyan")
                             self.console.print(t)
                         else:
-                            # Unselected options should be visible (not too dim)
                             t = Text("  ")
                             t.append(option, style="white")
                             self.console.print(t)
 
-                    # Add a single blank line under the options (so there's a small
-                    # visual gap after the last item, e.g. under 'Quit')
                     self.console.print()
 
-                    # Show instructions conditionally
                     if show_instructions:
                         self.console.print(Text("Use ↑/↓ arrow keys to navigate, Enter to select", style="dim"))
 
-                    # Get user input (same key handling)
                     key = self.get_key()
                 else:
-                    # Plain fallback: show title and options without extra spacing
                     print(f"{title}\n")
                     for i, option in enumerate(options):
                         if i == selected:
                             print(f"▶ {option}")
                         else:
                             print(f"  {option}")
-                    # Single blank line under the options
                     print()
-                    # Show instructions conditionally
                     if show_instructions:
                         print("Use ↑/↓ arrow keys to navigate, Enter to select")
                     key = self.get_key()
@@ -168,21 +140,19 @@ class Menu:
                 instruction_lines = 1 if show_instructions else 0
                 prev_printed_lines = 1 + len(options) + 1 + instruction_lines
 
-                if key == '\x1b[A':  # Up arrow
+                if key == '\x1b[A':
                     selected = max(0, selected - 1)
-                elif key == '\x1b[B':  # Down arrow
+                elif key == '\x1b[B':
                     selected = min(max_index, selected + 1)
-                elif key == '\r' or key == '\n':  # Enter
+                elif key == '\r' or key == '\n':
                     return selected
-                elif key == '\x03':  # Ctrl+C
+                elif key == '\x03':
                     raise KeyboardInterrupt
         finally:
-            # Always show the cursor again when leaving the menu
             print("\033[?25h", end="")
             sys.stdout.flush()
 
     def select_resolution(self):
-        """Interactive menu for resolution selection"""
         options = [
             "Best Quality",
             "1080p",
@@ -206,17 +176,15 @@ class Menu:
         return resolution_map.get(choice, "best")
 
     def ask_include_audio(self):
-        """Ask if user wants to include audio with video using arrow key navigation"""
         options = [
             "Yes",
             "No"
         ]
         
         choice = self.interactive_menu(options, "Include audio with video?", clear_screen=False, show_instructions=False)
-        return choice == 0  # Return True for "Yes", False for "No"
+        return choice == 0
 
     def select_format(self):
-        """Interactive menu for format selection"""
         options = [
             "MP4",
             "MKV",
@@ -238,7 +206,6 @@ class Menu:
         return format_map.get(choice, "mp4")
 
     def select_playlist_type(self):
-        """Interactive menu for playlist download type selection"""
         options = [
             "Download Videos (MP4)",
             "Download Audio Only (MP3)",

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import math
 
 def gradient_text(text, start_color, end_color):
@@ -10,7 +12,7 @@ def gradient_text(text, start_color, end_color):
     for line in lines:
         colored_line = ""
         for char in line:
-            if char.strip():  # Only color visible characters
+            if char.strip():
                 t = idx / (total_chars - 1)
                 r, g, b = rgb_interp(start_color, end_color, t)
                 colored_line += f"\033[38;2;{r};{g};{b}m{char}\033[0m"
@@ -29,18 +31,15 @@ def gradient_text_selective(text, start_color, end_color, gradient_word, white_p
     
     for line in lines:
         if gradient_word in line and white_prefix in line:
-            # Find the position of the prefix and gradient word
             prefix_start = line.find(white_prefix)
             word_start = line.find(gradient_word)
             
             if prefix_start != -1 and word_start != -1:
-                # Split the line into parts
                 before_prefix = line[:prefix_start]
                 prefix_part = line[prefix_start:word_start]
                 word_part = gradient_word
                 after_word = line[word_start + len(gradient_word):]
                 
-                # Apply gradient only to the main ASCII art (before_prefix)
                 colored_before = ""
                 total_chars = sum(1 for char in before_prefix if char.strip())
                 idx = 0
@@ -106,7 +105,6 @@ _ascii_art = """
                                     Made by neoarz
 """
 
-# Info message about supported sites and README link
 INFO_MESSAGE = """
 Supports YouTube, TikTok, Instagram, and more!
 See the full list of supported sites here: \033[34mhttps://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md\033[0m
