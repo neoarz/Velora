@@ -236,3 +236,24 @@ class Menu:
         }
         
         return format_map.get(choice, "mp4")
+
+    def select_playlist_type(self):
+        """Interactive menu for playlist download type selection"""
+        options = [
+            "Download Videos (MP4)",
+            "Download Audio Only (MP3)",
+            "Custom Format"
+        ]
+        
+        choice = self.interactive_menu(options, "Select playlist download type", clear_screen=False, show_instructions=False)
+        
+        if choice is None:
+            return None
+        
+        playlist_type_map = {
+            0: "video",
+            1: "audio",
+            2: "custom"
+        }
+        
+        return playlist_type_map.get(choice, "video")

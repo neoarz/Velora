@@ -3,6 +3,7 @@
 import subprocess
 import os
 import sys
+import ffmpeg
 from pathlib import Path
 from .ffmpeg_utils import FFmpegUtils
 
@@ -60,7 +61,7 @@ class Downloader:
         download_dir.mkdir(parents=True, exist_ok=True)
         return download_dir
 
-    def download_with_options(self, url, resolution="best", include_audio=True, output_format="mp4"):
+    def download_with_options(self, url, resolution="best", include_audio=True, output_format="mp4", audio_only=False):
         """Download video with specific resolution, audio, and format options"""
         try:
             # Validate URL before attempting download
@@ -69,6 +70,10 @@ class Downloader:
                 return False
             
             download_dir = self._create_download_dir()
+            
+            # Handle audio-only downloads
+            if audio_only:
+                return self._download_audio_only(url, download_dir, output_format)
             
             # Build format string based on options
             format_opts = self._build_format_string(resolution, include_audio, output_format)
@@ -106,25 +111,140 @@ class Downloader:
 
             if result.returncode == 0:
                 print("\n[SUCCESS] Download completed successfully!")
+                
+                # Handle MOV format post-processing if needed
+                if hasattr(self, '_desired_format') and self._desired_format == 'mov':
+                    success = self._convert_to_mov(download_dir)
+                    if not success:
+                        print("[WARNING] MOV conversion failed, but original download succeeded")
+                
                 self._show_download_info(download_dir)
                 return True
             else:
                 print(f"\n[ERROR] Download failed with exit code: {result.returncode}")
-                if result.stderr:
-                    error_msg = result.stderr.strip()
-                    if "is not a valid URL" in error_msg or "Unsupported URL" in error_msg:
-                        print("[ERROR] Invalid video URL. Please check the URL and try again.")
-                    elif "Video unavailable" in error_msg or "Private video" in error_msg:
-                        print("[ERROR] Video is unavailable or private. Please try a different URL.")
-                    elif "not found" in error_msg or "404" in error_msg:
-                        print("[ERROR] Video not found. Please check the URL and try again.")
-                    else:
-                        print(f"Error: {error_msg}")
+                print("[ERROR] Download failed. Please check the URL and try again.")
                 return False
 
         except Exception as e:
             print(f"\n[ERROR] Error during download: {e}")
             return False
+
+    def _download_audio_only(self, url, download_dir, audio_format="mp3"):
+        """Download audio only from video"""
+        try:
+            # Base command for audio extraction
+            cmd = [
+                self.yt_dlp_path,
+                '--no-playlist',  # Download single video
+                '-x',  # Extract audio
+                '--audio-format', audio_format,
+                '--audio-quality', '192K',  # Good quality
+                '-o', str(download_dir / '%(title)s.%(ext)s'),  # Output template
+                '--progress',
+                '--no-warnings',
+                url
+            ]
+
+            print(f"Downloading audio to: {download_dir}")
+            print(f"URL: {url}")
+            print(f"Format: {audio_format.upper()}")
+            print("Starting audio download...\n")
+
+            # Run yt-dlp
+            result = subprocess.run(
+                cmd,
+                cwd=str(download_dir),
+                capture_output=False,  # Show progress in real-time
+                text=True
+            )
+
+            if result.returncode == 0:
+                print("\n[SUCCESS] Audio download completed successfully!")
+                self._show_download_info(download_dir)
+                return True
+            else:
+                print(f"\n[ERROR] Audio download failed with exit code: {result.returncode}")
+                print("[ERROR] Download failed. Please check the URL and try again.")
+                return False
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during audio download: {e}")
+            return False
+
+    def _convert_to_mov(self, download_dir):
+        """Convert downloaded MP4 files to MOV format using FFmpeg"""
+        try:
+            # Find the most recently downloaded MP4 file
+            mp4_files = list(download_dir.glob("*.mp4"))
+            if not mp4_files:
+                print("[WARNING] No MP4 file found for MOV conversion")
+                return False
+            
+            # Get the most recent file
+            latest_mp4 = max(mp4_files, key=lambda x: x.stat().st_mtime)
+            mov_path = latest_mp4.with_suffix('.mov')
+            
+            print(f"Converting {latest_mp4.name} to MOV format...")
+            
+            # Use FFmpeg for conversion
+            if self.ffmpeg.is_available():
+                success = self._ffmpeg_convert_to_mov(str(latest_mp4), str(mov_path))
+                if success:
+                    # Remove the original MP4 file
+                    latest_mp4.unlink()
+                    print(f"[SUCCESS] Converted to {mov_path.name}")
+                    return True
+                else:
+                    print("[ERROR] FFmpeg conversion to MOV failed")
+                    return False
+            else:
+                print("[ERROR] FFmpeg not available for MOV conversion")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] MOV conversion failed: {e}")
+            return False
+
+    def _ffmpeg_convert_to_mov(self, input_path, output_path):
+        """Convert video to MOV format using FFmpeg with proper codec settings"""
+        try:
+            # Use stream copy for fast conversion when possible
+            # MOV container typically works well with H.264 video and AAC audio
+            stream = ffmpeg.input(input_path)
+            stream = ffmpeg.output(
+                stream, 
+                output_path,
+                vcodec='copy',  # Copy video stream without re-encoding
+                acodec='copy',  # Copy audio stream without re-encoding
+                movflags='faststart'  # Optimize for web streaming
+            )
+            
+            ffmpeg.run(stream, overwrite_output=True, quiet=True)
+            return True
+            
+        except Exception as e:
+            # Stream copy failed, this is normal for some videos
+            print("[INFO] Fast conversion not possible, re-encoding video for MOV compatibility...")
+            
+            # Fallback: Re-encode with H.264 and AAC (more compatible)
+            try:
+                stream = ffmpeg.input(input_path)
+                stream = ffmpeg.output(
+                    stream, 
+                    output_path,
+                    vcodec='libx264',
+                    acodec='aac',
+                    crf=23,  # Good quality
+                    preset='medium',
+                    movflags='faststart'
+                )
+                
+                ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                return True
+                
+            except Exception as e2:
+                print(f"[ERROR] FFmpeg MOV conversion failed: {e2}")
+                return False
 
     def _build_format_string(self, resolution, include_audio, output_format="mp4"):
         """Build yt-dlp format string based on resolution, audio preferences, and output format"""
@@ -145,10 +265,14 @@ class Downloader:
         # Build command options
         cmd_opts = ['-f', format_string]
         
-        # Add format conversion if needed
-        if output_format and output_format.lower() != 'webm':
+        # Store the desired output format for post-processing
+        self._desired_format = output_format.lower() if output_format else 'mp4'
+        
+        # For MOV format, don't use --remux-video as it often fails
+        # We'll handle MOV conversion using FFmpeg post-processing instead
+        if output_format and output_format.lower() != 'webm' and output_format.lower() != 'mov':
             # Use --remux-video for container format conversion (no re-encoding)
-            if output_format.lower() in ['mp4', 'mkv', 'avi', 'mov']:
+            if output_format.lower() in ['mp4', 'mkv', 'avi']:
                 cmd_opts.extend(['--remux-video', output_format.lower()])
             else:
                 # For other formats, use --recode-video (re-encoding)
@@ -429,3 +553,291 @@ class Downloader:
             codec='libx264',
             quality='medium'
         )
+
+    def get_playlist_info(self, url):
+        """Get playlist information"""
+        try:
+            # Basic URL validation
+            if not self._is_valid_url(url):
+                return {'error': 'invalid_url', 'message': 'Invalid playlist URL. Please check the URL and try again.'}
+            
+            cmd = [
+                self.yt_dlp_path,
+                '--flat-playlist',
+                '--print-json',
+                '--no-warnings',
+                url
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            import json
+            lines = result.stdout.strip().split('\n')
+            if not lines or not lines[0]:
+                return {'error': 'empty', 'message': 'No playlist information found.'}
+            
+            # Get first entry for playlist info
+            first_entry = json.loads(lines[0])
+            
+            # Count total videos
+            video_count = len([line for line in lines if line.strip()])
+            
+            # Extract platform/source information
+            platform = self._get_platform_from_url(url)
+            if not platform:
+                platform = 'Unknown'
+            
+            return {
+                'title': first_entry.get('playlist_title', first_entry.get('title', 'Unknown Playlist')),
+                'video_count': video_count,
+                'uploader': first_entry.get('uploader', first_entry.get('channel', 'Unknown')),
+                'platform': platform
+            }
+
+        except subprocess.CalledProcessError as e:
+            if e.stderr:
+                error_msg = e.stderr.strip()
+                if "is not a valid URL" in error_msg or "Unsupported URL" in error_msg:
+                    return {'error': 'invalid_url', 'message': 'Invalid playlist URL. Please check the URL and try again.'}
+                elif "Private" in error_msg or "unavailable" in error_msg:
+                    return {'error': 'unavailable', 'message': 'Playlist is unavailable or private. Please try a different URL.'}
+                else:
+                    return {'error': 'unknown', 'message': f'Could not access playlist: {error_msg}'}
+            return {'error': 'unknown', 'message': 'Could not get playlist info. Please check the URL and try again.'}
+        except Exception as e:
+            return {'error': 'unknown', 'message': f'Could not get playlist info: {str(e)}'}
+
+    def download_playlist(self, url, download_type="video"):
+        """Download entire playlist"""
+        try:
+            # Validate URL before attempting download
+            if not self._is_valid_url(url):
+                print("[ERROR] Invalid playlist URL. Please check the URL and try again.")
+                return False
+            
+            download_dir = self._create_download_dir()
+            
+            # Create playlist-specific subdirectory
+            playlist_dir = download_dir / "Playlists" / f"playlist_{int(__import__('time').time())}"
+            playlist_dir.mkdir(parents=True, exist_ok=True)
+            
+            if download_type == "audio":
+                return self._download_playlist_audio(url, playlist_dir)
+            elif download_type == "custom":
+                return self._download_playlist_custom(url, playlist_dir)
+            else:  # video
+                return self._download_playlist_video(url, playlist_dir)
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during playlist download: {e}")
+            return False
+
+    def download_playlist_with_options(self, url, download_type, resolution="best", include_audio=True, output_format="mp4"):
+        """Download entire playlist with specific options"""
+        try:
+            # Validate URL before attempting download
+            if not self._is_valid_url(url):
+                print("[ERROR] Invalid playlist URL. Please check the URL and try again.")
+                return False
+            
+            download_dir = self._create_download_dir()
+            
+            # Create playlist-specific subdirectory
+            playlist_dir = download_dir / "Playlists" / f"playlist_{int(__import__('time').time())}"
+            playlist_dir.mkdir(parents=True, exist_ok=True)
+            
+            if download_type == "video":
+                return self._download_playlist_video_with_options(url, playlist_dir, resolution, include_audio, output_format)
+            else:
+                # Fallback to regular playlist download for non-video types
+                return self.download_playlist(url, download_type)
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during playlist download: {e}")
+            return False
+
+    def _download_playlist_video(self, url, playlist_dir):
+        """Download playlist as videos"""
+        try:
+            cmd = [
+                self.yt_dlp_path,
+                '--yes-playlist',
+                '-f', 'bestvideo+bestaudio/best',
+                '--remux-video', 'mp4',
+                '-o', str(playlist_dir / '%(playlist_index)s - %(title)s.%(ext)s'),
+                '--progress',
+                '--no-warnings',
+                url
+            ]
+
+            print(f"Downloading playlist videos to: {playlist_dir}")
+            print(f"URL: {url}")
+            print("Format: MP4")
+            print("Starting playlist download...\n")
+
+            result = subprocess.run(
+                cmd,
+                cwd=str(playlist_dir),
+                capture_output=False,
+                text=True
+            )
+
+            if result.returncode == 0:
+                print("\n[SUCCESS] Playlist video download completed successfully!")
+                self._show_download_info(playlist_dir)
+                return True
+            else:
+                print(f"\n[ERROR] Playlist download failed with exit code: {result.returncode}")
+                return False
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during playlist video download: {e}")
+            return False
+
+    def _download_playlist_video_with_options(self, url, playlist_dir, resolution="best", include_audio=True, output_format="mp4"):
+        """Download playlist as videos with specific options"""
+        try:
+            # Build format string based on options (similar to single video download)
+            if resolution == "best":
+                if include_audio:
+                    format_string = 'bestvideo+bestaudio/best'
+                else:
+                    format_string = 'bestvideo'
+            else:
+                # Specific resolution
+                height = resolution.replace('p', '')
+                if include_audio:
+                    format_string = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]'
+                else:
+                    format_string = f'bestvideo[height<={height}]'
+
+            cmd = [
+                self.yt_dlp_path,
+                '--yes-playlist',
+                '-f', format_string,
+                '-o', str(playlist_dir / '%(playlist_index)s - %(title)s.%(ext)s'),
+                '--progress',
+                '--no-warnings',
+            ]
+
+            # Add format conversion if needed (excluding MOV for now to avoid conversion issues)
+            if output_format and output_format.lower() != 'webm' and output_format.lower() != 'mov':
+                if output_format.lower() in ['mp4', 'mkv', 'avi']:
+                    cmd.extend(['--remux-video', output_format.lower()])
+                else:
+                    cmd.extend(['--recode-video', output_format.lower()])
+
+            cmd.append(url)
+
+            print(f"Downloading playlist videos to: {playlist_dir}")
+            print(f"URL: {url}")
+            print(f"Resolution: {resolution}")
+            print(f"Audio: {'Yes' if include_audio else 'No'}")
+            print(f"Format: {output_format.upper()}")
+            print("Starting playlist download...\n")
+
+            result = subprocess.run(
+                cmd,
+                cwd=str(playlist_dir),
+                capture_output=False,
+                text=True
+            )
+
+            if result.returncode == 0:
+                # Handle MOV conversion if needed
+                if output_format and output_format.lower() == 'mov':
+                    print("\nConverting videos to MOV format...")
+                    self._convert_playlist_to_mov(playlist_dir)
+                
+                print("\n[SUCCESS] Playlist video download completed successfully!")
+                self._show_download_info(playlist_dir)
+                return True
+            else:
+                print(f"\n[ERROR] Playlist download failed with exit code: {result.returncode}")
+                return False
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during playlist video download: {e}")
+            return False
+
+    def _download_playlist_audio(self, url, playlist_dir):
+        """Download playlist as audio only"""
+        try:
+            cmd = [
+                self.yt_dlp_path,
+                '--yes-playlist',
+                '-x',
+                '--audio-format', 'mp3',
+                '--audio-quality', '192K',
+                '-o', str(playlist_dir / '%(playlist_index)s - %(title)s.%(ext)s'),
+                '--progress',
+                '--no-warnings',
+                url
+            ]
+
+            print(f"Downloading playlist audio to: {playlist_dir}")
+            print(f"URL: {url}")
+            print("Format: MP3")
+            print("Starting playlist audio download...\n")
+
+            result = subprocess.run(
+                cmd,
+                cwd=str(playlist_dir),
+                capture_output=False,
+                text=True
+            )
+
+            if result.returncode == 0:
+                print("\n[SUCCESS] Playlist audio download completed successfully!")
+                self._show_download_info(playlist_dir)
+                return True
+            else:
+                print(f"\n[ERROR] Playlist audio download failed with exit code: {result.returncode}")
+                return False
+
+        except Exception as e:
+            print(f"\n[ERROR] Error during playlist audio download: {e}")
+            return False
+
+    def _download_playlist_custom(self, url, playlist_dir):
+        """Download playlist with custom options"""
+        # For now, default to video download
+        # This can be expanded later to ask for custom format options
+        print("[INFO] Custom format selection not yet implemented. Using MP4 video format.")
+        return self._download_playlist_video(url, playlist_dir)
+
+    def _convert_playlist_to_mov(self, playlist_dir):
+        """Convert all MP4 files in playlist directory to MOV format"""
+        try:
+            mp4_files = list(playlist_dir.glob("*.mp4"))
+            if not mp4_files:
+                print("[WARNING] No MP4 files found for MOV conversion")
+                return False
+            
+            converted_count = 0
+            for mp4_file in mp4_files:
+                mov_path = mp4_file.with_suffix('.mov')
+                print(f"Converting {mp4_file.name} to MOV...")
+                
+                if self.ffmpeg.is_available():
+                    success = self._ffmpeg_convert_to_mov(str(mp4_file), str(mov_path))
+                    if success:
+                        mp4_file.unlink()  # Remove original MP4
+                        converted_count += 1
+                    else:
+                        print(f"[WARNING] Failed to convert {mp4_file.name}")
+                else:
+                    print("[ERROR] FFmpeg not available for MOV conversion")
+                    return False
+            
+            print(f"[INFO] Successfully converted {converted_count}/{len(mp4_files)} files to MOV")
+            return converted_count > 0
+            
+        except Exception as e:
+            print(f"[ERROR] Playlist MOV conversion failed: {e}")
+            return False
