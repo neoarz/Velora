@@ -89,7 +89,7 @@ class Menu:
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-    def interactive_menu(self, options, title="Select an option", show_ascii=False, clear_screen=True):
+    def interactive_menu(self, options, title="Select an option", show_ascii=False, clear_screen=True, show_instructions=True):
         """Interactive menu with arrow key navigation"""
         selected = 0
         max_index = len(options) - 1
@@ -144,8 +144,9 @@ class Menu:
                     # visual gap after the last item, e.g. under 'Quit')
                     self.console.print()
 
-                    # Instructions (single dim line)
-                    self.console.print(Text("Use ↑/↓ arrow keys to navigate, Enter to select", style="dim"))
+                    # Show instructions conditionally
+                    if show_instructions:
+                        self.console.print(Text("Use ↑/↓ arrow keys to navigate, Enter to select", style="dim"))
 
                     # Get user input (same key handling)
                     key = self.get_key()
@@ -159,14 +160,13 @@ class Menu:
                             print(f"  {option}")
                     # Single blank line under the options
                     print()
-                    print("Use ↑/↓ arrow keys to navigate, Enter to select")
+                    # Show instructions conditionally
+                    if show_instructions:
+                        print("Use ↑/↓ arrow keys to navigate, Enter to select")
                     key = self.get_key()
 
-                # After rendering we record how many lines the menu consumed
-                # so we can clear exactly that many on the next partial redraw.
-                # We assume the menu prints: title (1) + each option (len(options)) +
-                # a blank line (1) + the instruction line (1).
-                prev_printed_lines = 1 + len(options) + 1 + 1
+                instruction_lines = 1 if show_instructions else 0
+                prev_printed_lines = 1 + len(options) + 1 + instruction_lines
 
                 if key == '\x1b[A':  # Up arrow
                     selected = max(0, selected - 1)
@@ -184,15 +184,15 @@ class Menu:
     def select_resolution(self):
         """Interactive menu for resolution selection"""
         options = [
-            "Best available quality",
-            "1080p (Full HD)",
-            "720p (HD)",
-            "480p (SD)",
+            "Best Quality",
+            "1080p",
+            "720p",
+            "480p",
             "360p",
-            "Custom resolution"
+            "144p"
         ]
         
-        choice = self.interactive_menu(options, "Select Video Resolution", clear_screen=False)
+        choice = self.interactive_menu(options, "Select Video Resolution", clear_screen=False, show_instructions=False)
         
         resolution_map = {
             0: "best",
@@ -200,11 +200,17 @@ class Menu:
             2: "720p", 
             3: "480p",
             4: "360p",
-            5: "custom"
+            5: "144p"
         }
         
         return resolution_map.get(choice, "best")
 
     def ask_include_audio(self):
-        """Ask if user wants to include audio with video"""
-        return self.confirm_action("Include audio with video?")
+        """Ask if user wants to include audio with video using arrow key navigation"""
+        options = [
+            "Yes",
+            "No"
+        ]
+        
+        choice = self.interactive_menu(options, "Include audio with video?", clear_screen=False, show_instructions=False)
+        return choice == 0  # Return True for "Yes", False for "No"

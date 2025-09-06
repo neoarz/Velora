@@ -31,7 +31,7 @@ class VeloraApp:
             "Quit"
         ]
         
-        choice = self.menu.interactive_menu(options, "Velora - Main Menu", show_ascii=True)
+        choice = self.menu.interactive_menu(options, "Velora - Main Menu", show_ascii=True, show_instructions=True)
         return str(choice + 1)  # Convert to 1-based indexing for compatibility
 
     def get_menu_choice(self):

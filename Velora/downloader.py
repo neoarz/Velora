@@ -130,14 +130,8 @@ class Downloader:
                 return ['-f', 'bestvideo+bestaudio/best']
             else:
                 return ['-f', 'bestvideo']
-        elif resolution == "custom":
-            # For custom, we'll use best for now - could be extended later
-            if include_audio:
-                return ['-f', 'bestvideo+bestaudio/best']
-            else:
-                return ['-f', 'bestvideo']
         else:
-            # Specific resolution (1080p, 720p, etc.)
+            # Specific resolution (1080p, 720p, 480p, 360p, 144p)
             height = resolution.replace('p', '')
             if include_audio:
                 return ['-f', f'bestvideo[height<={height}]+bestaudio/best[height<={height}]']
