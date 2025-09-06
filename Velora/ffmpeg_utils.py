@@ -8,14 +8,11 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
 class FFmpegUtils:
-    """Utility class for FFmpeg operations and video processing"""
-    
     def __init__(self):
         self.ffmpeg_path = self._find_ffmpeg()
         self.ffprobe_path = self._find_ffprobe()
     
     def _find_ffmpeg(self) -> str:
-        """Find FFmpeg executable"""
         common_paths = [
             'ffmpeg',
             '/usr/bin/ffmpeg',
@@ -27,7 +24,6 @@ class FFmpegUtils:
             if self._check_executable(path):
                 return path
         
-        # Check if it's in PATH
         try:
             subprocess.run(['ffmpeg', '-version'], 
                          capture_output=True, check=True)
@@ -38,7 +34,6 @@ class FFmpegUtils:
             return None
     
     def _find_ffprobe(self) -> str:
-        """Find FFprobe executable"""
         common_paths = [
             'ffprobe',
             '/usr/bin/ffprobe', 
@@ -50,7 +45,6 @@ class FFmpegUtils:
             if self._check_executable(path):
                 return path
         
-        # Check if it's in PATH
         try:
             subprocess.run(['ffprobe', '-version'],
                          capture_output=True, check=True)
@@ -59,7 +53,6 @@ class FFmpegUtils:
             return None
     
     def _check_executable(self, path: str) -> bool:
-        """Check if executable exists and works"""
         try:
             subprocess.run([path, '-version'],
                          capture_output=True, check=True)
@@ -68,11 +61,9 @@ class FFmpegUtils:
             return False
     
     def is_available(self) -> bool:
-        """Check if FFmpeg is available"""
         return self.ffmpeg_path is not None
     
     def get_video_info(self, file_path: str) -> Dict[str, Any]:
-        """Get detailed video information using FFprobe"""
         if not self.ffprobe_path:
             return {}
         
@@ -117,7 +108,6 @@ class FFmpegUtils:
                      codec: str = 'libx264', 
                      quality: str = 'medium',
                      audio_codec: str = 'aac') -> bool:
-        """Convert video to different format/codec"""
         if not self.is_available():
             print("[ERROR] FFmpeg not available for conversion")
             return False
@@ -125,7 +115,6 @@ class FFmpegUtils:
         try:
             stream = ffmpeg.input(input_path)
             
-            # Video encoding options based on quality
             video_opts = self._get_video_encoding_options(codec, quality)
             audio_opts = {'acodec': audio_codec}
             
@@ -141,7 +130,6 @@ class FFmpegUtils:
     
     def extract_audio(self, input_path: str, output_path: str, 
                      format: str = 'mp3', quality: str = '192k') -> bool:
-        """Extract audio from video file"""
         if not self.is_available():
             print("[ERROR] FFmpeg not available for audio extraction")
             return False
@@ -152,7 +140,7 @@ class FFmpegUtils:
             audio_opts = {
                 'acodec': 'libmp3lame' if format == 'mp3' else 'libvorbis',
                 'audio_bitrate': quality,
-                'vn': None  # No video
+                'vn': None
             }
             
             stream = ffmpeg.output(stream, output_path, **audio_opts)
@@ -167,7 +155,6 @@ class FFmpegUtils:
     
     def trim_video(self, input_path: str, output_path: str,
                   start_time: str, duration: str = None, end_time: str = None) -> bool:
-        """Trim video to specified time range"""
         if not self.is_available():
             print("[ERROR] FFmpeg not available for trimming")
             return False
@@ -194,7 +181,6 @@ class FFmpegUtils:
     def resize_video(self, input_path: str, output_path: str,
                     width: int, height: int = None, 
                     maintain_aspect: bool = True) -> bool:
-        """Resize video to specified dimensions"""
         if not self.is_available():
             print("[ERROR] FFmpeg not available for resizing")
             return False
@@ -203,7 +189,6 @@ class FFmpegUtils:
             stream = ffmpeg.input(input_path)
             
             if maintain_aspect and height is None:
-                # Calculate height maintaining aspect ratio
                 scale_filter = f'scale={width}:-1'
             elif maintain_aspect and width is None:
                 scale_filter = f'scale=-1:{height}'
@@ -222,7 +207,6 @@ class FFmpegUtils:
             return False
     
     def merge_videos(self, video_paths: List[str], output_path: str) -> bool:
-        """Merge multiple videos into one"""
         if not self.is_available():
             print("[ERROR] FFmpeg not available for merging")
             return False
@@ -235,7 +219,6 @@ class FFmpegUtils:
             # Create input streams
             inputs = [ffmpeg.input(path) for path in video_paths]
             
-            # Concatenate videos
             joined = ffmpeg.concat(*inputs, v=1, a=1)
             stream = ffmpeg.output(joined, output_path)
             ffmpeg.run(stream, overwrite_output=True, quiet=True)
@@ -250,7 +233,6 @@ class FFmpegUtils:
     def add_watermark(self, input_path: str, output_path: str,
                      watermark_path: str, position: str = 'bottom-right',
                      opacity: float = 0.5) -> bool:
-        """Add watermark to video"""
         if not self.is_available():
             print("[ERROR] FFmpeg not available for watermarking")
             return False
@@ -259,7 +241,6 @@ class FFmpegUtils:
             main = ffmpeg.input(input_path)
             watermark = ffmpeg.input(watermark_path)
             
-            # Position mapping
             positions = {
                 'top-left': '10:10',
                 'top-right': 'W-w-10:10',
@@ -286,7 +267,6 @@ class FFmpegUtils:
             return False
     
     def _get_video_encoding_options(self, codec: str, quality: str) -> Dict[str, Any]:
-        """Get video encoding options based on codec and quality"""
         options = {'vcodec': codec}
         
         if codec == 'libx264':
@@ -312,7 +292,6 @@ class FFmpegUtils:
     def create_gif(self, input_path: str, output_path: str,
                   start_time: str = '0', duration: str = '10',
                   fps: int = 15, width: int = 320) -> bool:
-        """Create GIF from video"""
         if not self.is_available():
             print("[ERROR] FFmpeg not available for GIF creation")
             return False
@@ -333,7 +312,6 @@ class FFmpegUtils:
     
     def get_thumbnail(self, input_path: str, output_path: str,
                      time: str = '00:00:01') -> bool:
-        """Extract thumbnail from video at specified time"""
         if not self.is_available():
             print("[ERROR] FFmpeg not available for thumbnail extraction")
             return False

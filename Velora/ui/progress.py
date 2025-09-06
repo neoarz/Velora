@@ -31,15 +31,14 @@ class ProgressBar:
         filled = int(self.width * percentage / 100)
         bar = self.style[0] * filled + self.style[1] * (self.width - filled)
 
-        # Colors based on progress
         if percentage < 25:
-            color = "\033[31m"  # Red
+            color = "\033[31m"
         elif percentage < 50:
-            color = "\033[33m"  # Yellow
+            color = "\033[33m"
         elif percentage < 75:
-            color = "\033[32m"  # Green
+            color = "\033[32m"
         else:
-            color = "\033[36m"  # Cyan
+            color = "\033[36m"
 
         reset = "\033[0m"
 
@@ -61,8 +60,6 @@ class ProgressBar:
         self.finish("Done!")
 
 class Spinner:
-    """Simple spinner for indeterminate progress"""
-
     def __init__(self, message="Loading..."):
         self.message = message
         self.spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
