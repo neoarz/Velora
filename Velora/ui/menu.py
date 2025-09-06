@@ -189,7 +189,6 @@ class Menu:
             "MP4",
             "MKV",
             "WEBM",
-            "AVI",
             "MOV"
         ]
         
@@ -199,8 +198,7 @@ class Menu:
             0: "mp4",
             1: "mkv", 
             2: "webm",
-            3: "avi",
-            4: "mov"
+            3: "mov"
         }
         
         return format_map.get(choice, "mp4")
