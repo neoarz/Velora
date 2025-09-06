@@ -31,7 +31,7 @@ class VeloraApp:
             "Quit"
         ]
         
-        choice = self.menu.interactive_menu(options, "Velora - Main Menu", show_ascii=True)
+        choice = self.menu.interactive_menu(options, "Velora - Main Menu", show_ascii=True, show_instructions=True)
         return str(choice + 1)  # Convert to 1-based indexing for compatibility
 
     def get_menu_choice(self):
@@ -43,7 +43,7 @@ class VeloraApp:
     def get_url_input(self):
         return self.modal.show_url_input_modal()
 
-    def show_download_options(self):
+    def show_download_options(self, clear_screen=True):
         options = [
             "Best quality (video + audio)",
             "Audio only (MP3)", 
@@ -51,8 +51,8 @@ class VeloraApp:
             "Video only (MP4)",
             "Custom options"
         ]
-        
-        choice = self.menu.interactive_menu(options, "Download Format Options")
+        # default behavior clears screen; caller can override
+        choice = self.menu.interactive_menu(options, "Download Format Options", clear_screen=clear_screen)
         return choice + 1  # Convert to 1-based indexing for compatibility
 
     def show_video_info(self, url):
@@ -62,17 +62,18 @@ class VeloraApp:
         info = self.downloader.get_video_info(url)
 
         spinner.stop()
-
-        if info:
-            print("\nVideo Information:")
-            print(f"   Title: {info['title']}")
-            print(f"   Duration: {info['duration']}")
-            print(f"   Uploader: {info['uploader']}")
-            print(f"   Views: {info['view_count']}")
-            print(f"   Available formats: {info['formats']}")
-            print()
-        else:
-            self.menu.print_warning("Could not retrieve video information")
+        # Display info using the modal (Rich panel if available, plain fallback otherwise)
+        try:
+            self.modal.show_video_info_modal(info)
+            # Return the info so calling methods can check for errors
+            return info
+        except Exception:
+            if not info or 'error' in info:
+                error_msg = "Could not retrieve video information"
+                if info and 'message' in info:
+                    error_msg = info['message']
+                self.menu.print_warning(error_msg)
+            return info
 
     def run(self):
         try:
@@ -103,32 +104,88 @@ class VeloraApp:
             sys.exit(1)
 
     def handle_download_video(self):
-        url = self.get_url_input()
-        self.show_video_info(url)
-        format_choice = self.show_download_options()
-        print(f"\nStarting download...")
-        print(f"   URL: {url}")
-        print(f"   Format: {format_choice}")
-        print()
-        success = self.downloader.download(url, format_choice)
-        if success:
-            self.menu.print_success("Download completed successfully!")
-        else:
-            self.menu.print_error("Download failed. Please check the URL and try again.")
+        while True:
+            url = self.get_url_input()
+            if not url:
+                self.menu.print_warning("No URL provided. Returning to main menu.")
+                return
+                
+            info = self.show_video_info(url)
+            
+            # Check if there was an error getting video info
+            if info and 'error' in info:
+                if info['error'] == 'invalid_url':
+                    self.menu.print_error("Invalid video URL. Please try again with a valid URL.")
+                    retry = self.menu.confirm_action("Would you like to try with a different URL?")
+                    if retry:
+                        continue
+                    else:
+                        return
+                else:
+                    self.menu.print_error(info.get('message', 'Could not access video.'))
+                    retry = self.menu.confirm_action("Would you like to try with a different URL?")
+                    if retry:
+                        continue
+                    else:
+                        return
+            
+            # If we got here, video info was successful
+            # Ask for resolution preference
+            resolution = self.menu.select_resolution()
+            
+            # Ask if user wants to include audio
+            include_audio = self.menu.ask_include_audio()
+            
+            print(f"\nStarting download...")
+            print(f"   URL: {url}")
+            print(f"   Resolution: {resolution}")
+            print(f"   Audio: {'Yes' if include_audio else 'No'}")
+            print()
+            success = self.downloader.download_with_options(url, resolution, include_audio)
+            if success:
+                self.menu.print_success("Download completed successfully!")
+            else:
+                self.menu.print_error("Download failed. Please check the URL and try again.")
+            break
 
     def handle_download_audio(self):
         print("\nDownload Audio Only Selected")
-        url = self.get_url_input()
-        self.show_video_info(url)
-        # Force audio format selection
-        print(f"\nStarting audio download...")
-        print(f"   URL: {url}")
-        print()
-        success = self.downloader.download(url, 2)  # Audio only MP3
-        if success:
-            self.menu.print_success("Audio download completed successfully!")
-        else:
-            self.menu.print_error("Download failed. Please check the URL and try again.")
+        while True:
+            url = self.get_url_input()
+            if not url:
+                self.menu.print_warning("No URL provided. Returning to main menu.")
+                return
+                
+            info = self.show_video_info(url)
+            
+            # Check if there was an error getting video info
+            if info and 'error' in info:
+                if info['error'] == 'invalid_url':
+                    self.menu.print_error("Invalid video URL. Please try again with a valid URL.")
+                    retry = self.menu.confirm_action("Would you like to try with a different URL?")
+                    if retry:
+                        continue
+                    else:
+                        return
+                else:
+                    self.menu.print_error(info.get('message', 'Could not access video.'))
+                    retry = self.menu.confirm_action("Would you like to try with a different URL?")
+                    if retry:
+                        continue
+                    else:
+                        return
+            
+            # If we got here, video info was successful
+            # Show a divider and start audio download without clearing the screen
+            print(f"\nStarting audio download...")
+            print(f"   URL: {url}")
+            print()
+            success = self.downloader.download(url, 2)  # Audio only MP3
+            if success:
+                self.menu.print_success("Audio download completed successfully!")
+            else:
+                self.menu.print_error("Download failed. Please check the URL and try again.")
+            break
 
     def handle_download_playlist(self):
         print("\nDownload Playlist Selected")
