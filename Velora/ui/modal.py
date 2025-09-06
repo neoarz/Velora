@@ -65,3 +65,59 @@ class Modal:
         # Input prompt below
         url = input("> ").strip()
         return url if url else None
+
+    def show_video_info_modal(self, info: dict | None):
+        """Display video information in a right-aligned Rich panel (or plain fallback).
+
+        This does NOT clear the screen — it prints the modal below existing content so
+        the menu/options remain visible.
+        """
+        if RICH_AVAILABLE:
+            from rich.panel import Panel
+            from rich.table import Table
+            from rich.padding import Padding
+
+            table = Table.grid(padding=(0, 1))
+            table.add_column(justify="right", style="bold cyan", no_wrap=True)
+            table.add_column(justify="left")
+
+            if info and 'error' not in info:
+                table.add_row("Title:", info.get('title', 'Unknown'))
+                table.add_row("Duration:", info.get('duration', 'Unknown'))
+                table.add_row("Uploader:", info.get('uploader', 'Unknown'))
+                table.add_row("Views:", str(info.get('view_count', 'Unknown')))
+                table.add_row("Platform:", info.get('platform', 'Unknown'))
+                panel = Panel(Padding(table, (0, 1)), title="Video Info", border_style="cyan", width=60)
+            else:
+                # Handle error cases
+                error_msg = "Could not retrieve video information"
+                if info and 'message' in info:
+                    error_msg = info['message']
+                table.add_row("Error:", error_msg)
+                panel = Panel(Padding(table, (0, 1)), title="Error", border_style="red", width=60)
+
+            # Add minimal vertical spacing
+            self.console.print("\n")
+            # Left-align the panel so it appears on the left side as a side modal
+            # Use left justification so it doesn't clear existing content on the right
+            self.console.print(panel, justify="left")
+            # Add space after video info
+            self.console.print("\n")
+        else:
+            # Plain fallback: print without clearing the screen
+            # Add a blank line to separate the info from previous content
+            print()
+            if info and 'error' not in info:
+                print("\nVideo Information:")
+                print(f"   Title: {info.get('title', 'Unknown')}")
+                print(f"   Duration: {info.get('duration', 'Unknown')}")
+                print(f"   Uploader: {info.get('uploader', 'Unknown')}")
+                print(f"   Views: {info.get('view_count', 'Unknown')}")
+                print(f"   Platform: {info.get('platform', 'Unknown')}")
+            else:
+                error_msg = "Could not retrieve video information"
+                if info and 'message' in info:
+                    error_msg = info['message']
+                print(f"\nError: {error_msg}")
+            # Add space after video info
+            print()

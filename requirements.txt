@@ -1,3 +1,2 @@
-yt-dlp>=2025.8.27
+yt-dlp>=2025.09.05
 rich
-textual

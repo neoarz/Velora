@@ -73,6 +73,7 @@ class Menu:
     def clear_last_lines(self, num_lines):
         """Clear the last n lines from the terminal"""
         for _ in range(num_lines):
+            # Move cursor up one line and clear it
             print("\033[F\033[K", end="")
 
     def get_key(self):
@@ -88,18 +89,30 @@ class Menu:
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-    def interactive_menu(self, options, title="Select an option", show_ascii=False):
+    def interactive_menu(self, options, title="Select an option", show_ascii=False, clear_screen=True):
         """Interactive menu with arrow key navigation"""
         selected = 0
         max_index = len(options) - 1
+        # Track how many menu lines we printed last loop so that when
+        # clear_screen is False we only erase the menu area and leave
+        # the ASCII header / modal intact.
+        prev_printed_lines = 0
         # Hide the cursor while the interactive menu is displayed to avoid
         # seeing the blinking cursor during navigation. Restore it on exit.
         print("\033[?25l", end="")
         sys.stdout.flush()
         try:
             while True:
-                # Clear screen and show header
-                self.clear_screen()
+                # Clear screen and show header (optional)
+                if clear_screen:
+                    # Full clear requested: wipe everything and reset tracking
+                    self.clear_screen()
+                    prev_printed_lines = 0
+                else:
+                    # Partial redraw: only clear the previous menu lines we printed
+                    if prev_printed_lines:
+                        self.clear_last_lines(prev_printed_lines)
+
                 # Always show ASCII art when requested, independent of Rich availability
                 if show_ascii:
                     from .ascii import ascii, INFO_MESSAGE
@@ -107,12 +120,12 @@ class Menu:
                     # Print INFO_MESSAGE without extra leading/trailing blank lines
                     print(ascii)
                     print(INFO_MESSAGE)
-                
+
                 # If Rich is available, render a nicer menu
                 if RICH_AVAILABLE:
-                    # Title as a rule for nicer separation when not showing ascii
+                    # Print a simple title (avoid long rule/divider which caused visual reloads)
                     if not show_ascii:
-                        self.console.rule(Text(title, style="bold white"))
+                        self.console.print(Text(title, style="bold white"))
 
                     # Render options
                     for i, option in enumerate(options):
@@ -149,6 +162,12 @@ class Menu:
                     print("Use ↑/↓ arrow keys to navigate, Enter to select")
                     key = self.get_key()
 
+                # After rendering we record how many lines the menu consumed
+                # so we can clear exactly that many on the next partial redraw.
+                # We assume the menu prints: title (1) + each option (len(options)) +
+                # a blank line (1) + the instruction line (1).
+                prev_printed_lines = 1 + len(options) + 1 + 1
+
                 if key == '\x1b[A':  # Up arrow
                     selected = max(0, selected - 1)
                 elif key == '\x1b[B':  # Down arrow
@@ -161,3 +180,31 @@ class Menu:
             # Always show the cursor again when leaving the menu
             print("\033[?25h", end="")
             sys.stdout.flush()
+
+    def select_resolution(self):
+        """Interactive menu for resolution selection"""
+        options = [
+            "Best available quality",
+            "1080p (Full HD)",
+            "720p (HD)",
+            "480p (SD)",
+            "360p",
+            "Custom resolution"
+        ]
+        
+        choice = self.interactive_menu(options, "Select Video Resolution", clear_screen=False)
+        
+        resolution_map = {
+            0: "best",
+            1: "1080p",
+            2: "720p", 
+            3: "480p",
+            4: "360p",
+            5: "custom"
+        }
+        
+        return resolution_map.get(choice, "best")
+
+    def ask_include_audio(self):
+        """Ask if user wants to include audio with video"""
+        return self.confirm_action("Include audio with video?")
