@@ -112,11 +112,12 @@ class Downloader:
             if result.returncode == 0:
                 print("\n[SUCCESS] Download completed successfully!")
                 
-                # Handle MOV format post-processing if needed
-                if hasattr(self, '_desired_format') and self._desired_format == 'mov':
-                    success = self._convert_to_mov(download_dir)
-                    if not success:
-                        print("[WARNING] MOV conversion failed, but original download succeeded")
+                # Handle format post-processing if needed
+                if hasattr(self, '_desired_format'):
+                    if self._desired_format == 'mov':
+                        success = self._convert_to_mov(download_dir)
+                        if not success:
+                            print("[WARNING] MOV conversion failed, but original download succeeded")
                 
                 self._show_download_info(download_dir)
                 return True
@@ -270,9 +271,9 @@ class Downloader:
         
         # For MOV format, don't use --remux-video as it often fails
         # We'll handle MOV conversion using FFmpeg post-processing instead
-        if output_format and output_format.lower() != 'webm' and output_format.lower() != 'mov':
+        if output_format and output_format.lower() not in ['webm', 'mov']:
             # Use --remux-video for container format conversion (no re-encoding)
-            if output_format.lower() in ['mp4', 'mkv', 'avi']:
+            if output_format.lower() in ['mp4', 'mkv']:
                 cmd_opts.extend(['--remux-video', output_format.lower()])
             else:
                 # For other formats, use --recode-video (re-encoding)
@@ -506,7 +507,7 @@ class Downloader:
             print(f"[ERROR] Directory not found: {directory}")
             return False
         
-        video_extensions = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm'}
+        video_extensions = {'.mp4', '.mkv', '.mov', '.wmv', '.flv', '.webm'}
         video_files = [f for f in directory.iterdir() 
                       if f.suffix.lower() in video_extensions]
         
@@ -725,9 +726,9 @@ class Downloader:
                 '--no-warnings',
             ]
 
-            # Add format conversion if needed (excluding MOV for now to avoid conversion issues)
-            if output_format and output_format.lower() != 'webm' and output_format.lower() != 'mov':
-                if output_format.lower() in ['mp4', 'mkv', 'avi']:
+            # Add format conversion if needed (excluding MOV to avoid conversion issues)
+            if output_format and output_format.lower() not in ['webm', 'mov']:
+                if output_format.lower() in ['mp4', 'mkv']:
                     cmd.extend(['--remux-video', output_format.lower()])
                 else:
                     cmd.extend(['--recode-video', output_format.lower()])
@@ -749,7 +750,7 @@ class Downloader:
             )
 
             if result.returncode == 0:
-                # Handle MOV conversion if needed
+                # Handle format conversion if needed
                 if output_format and output_format.lower() == 'mov':
                     print("\nConverting videos to MOV format...")
                     self._convert_playlist_to_mov(playlist_dir)
