@@ -1,10 +1,14 @@
-# Velora
 
 <div align="center">
   
-**A beautiful terminal wrapper for yt-dlp with an easy-to-use interface**
+# Velora
+
+  
+
 
 <img src="assets/screenshot.png" alt="Velora Screenshot" width="100%" />
+
+**A beautiful terminal wrapper for yt-dlp with an easy-to-use interface**
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/yourusername/Velora)](https://github.com/yourusername/Velora/releases)
 [![License](https://img.shields.io/github/license/yourusername/Velora)](LICENSE)
