@@ -24,17 +24,16 @@
 Velora is a Python-based terminal application that serves as a wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) (video downloader) and [FFmpeg](https://github.com/FFmpeg/FFmpeg) (video and image processor) with an command-line interface. The project uses yt-dlp as its core download engine to download videos and audio from different platforms such as YouTube, Tiktok, SoundCloud, Instagram, and more. It uses FFmpeg for post-processing capabilities like format conversion (MP4, MOV, MKV), audio extraction (MP3), and thumbnail generation (PNG, JPG, WEBP).
  
 ## Features
-
-- **Multi-platform support** - Download from YouTube, Vimeo, SoundCloud, TikTok, Instagram, and more
-- **Audio extraction** - Extract audio only in MP3, AAC, FLAC formats
-- **Playlist downloads** - Download entire playlists with ease
-- **Beautiful interface** - Clean, colorful terminal UI with gradient ASCII art
-- **Real-time progress** - Live download progress with speed and ETA
-- **Format conversion** - Multiple video formats (MP4, MOV, MKV, AVI) using FFmpeg
-- **Video preview** - Get video information before downloading
-- **Post-processing** - Trim, resize, and extract thumbnails
-- **Error handling** - Helpful error messages and recovery options
-- **Quality control** - Automatic or custom resolution selection
+- Download from YouTube, Vimeo, SoundCloud, TikTok, Instagram, and more
+- Extract audio from videos in MP3 format
+- Download entire playlists (Youtube)
+- Clean, ui (I tried my best)
+- Live download progress with speed and ETA
+- Multiple video formats (MP4, MOV, MKV,) using FFmpeg
+- Get video information before downloading
+- Extract thumbnails from videos
+- Choose between custom configs
+- Automatic or custom resolution selection
 
 ## Installation
 
