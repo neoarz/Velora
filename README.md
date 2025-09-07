@@ -17,6 +17,11 @@
 
 <br>
 
+> [!WARNING]
+> **Velora is Still in BETA**
+> 
+> I've only recently made this project and not everything is perfect. Expect bugs and issues. I really ask you to make a [github issue](https://github.com/neoarz/Velora/issues) if you face any problems, or dm me on discord `neoarz`
+
 
 ## What is Velora?
 Velora is a Python-based terminal application that serves as a wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) (video downloader) and [FFmpeg](https://github.com/FFmpeg/FFmpeg) (video and image processor) with an command-line interface. The project uses yt-dlp as its core download engine to download videos and audio from different platforms such as YouTube, Tiktok, SoundCloud, Instagram, and more. It uses FFmpeg for post-processing like video format conversion (MP4, MOV, MKV), audio extraction (MP3), and thumbnail generation (PNG, JPG, WEBP).
