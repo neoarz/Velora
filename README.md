@@ -37,37 +37,52 @@ Velora is a Python-based terminal application that serves as a wrapper for [yt-d
 
 ## Installation
 
-### Quick Install (Recommended)
-
-Download the latest binary from our [releases page](https://github.com/neoarz/Velora/releases):
-
 #### macOS
 ```bash
-# Download and install
-curl -L https://github.com/yourusername/Velora/releases/latest/download/velora-macos -o velora
-chmod +x velora
-sudo mv velora /usr/local/bin/
-
 # Install FFmpeg dependency
 brew install ffmpeg
+
+# Download latest release from GitHub, unzip, and run
+# Go to https://github.com/neoarz/Velora/releases/latest
+# Download velora-macos.zip, extract it, then:
+chmod +x velora
+./velora
+
 ```
 
 #### Linux
 ```bash
-# Download and install
-curl -L https://github.com/yourusername/Velora/releases/latest/download/velora-linux -o velora
-chmod +x velora
-sudo mv velora /usr/local/bin/
-
 # Install FFmpeg dependency
 sudo apt update && sudo apt install -y ffmpeg  # Ubuntu/Debian
 # OR
-sudo yum install ffmpeg                         # CentOS/RHEL
-# OR  
+
+sudo yum install ffmpeg                        # CentOS/RHEL
+# OR
+
 sudo pacman -S ffmpeg                          # Arch Linux
+
+# Download latest release from GitHub, unzip, and run
+# Go to https://github.com/neoarz/Velora/releases/latest
+# Download velora-linux.zip, extract it, then:
+chmod +x velora
+./velora
 ```
 
-> **Note:** Windows is not currently supported. Use WSL (Windows Subsystem for Linux) if you're on Windows.
+#### Windows
+```bash
+# Windows is not currently supported
+# Please use WSL (Windows Subsystem for Linux) with the Linux instructions above
+# Install WSL: https://learn.microsoft.com/en-us/windows/wsl/install
+# Then follow the Linux installation steps in your WSL terminal depending on your distro
+```
+
+
+
+
+
+
+
+
 
 ### Build from Source
 
