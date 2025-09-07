@@ -2,7 +2,7 @@
 
 # Velora
 
-**A terminal wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://github.com/FFmpeg/FFmpeg)**
+**A terminal wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [FFmpeg](https://github.com/FFmpeg/FFmpeg)**
 
 
 <img src="assets/screenshot.png" alt="Velora Screenshot" width="100%" />
@@ -17,7 +17,12 @@
 > 
 > Developing this entire project in linux and macos, I have no intention of giving any support to windows unless someone gives a PR for it. If you are on Windows and would like you use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
 
+<br>
 
+
+## What is Velora?
+Velora is a Python-based terminal application that serves as a wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) (video downloader) and [FFmpeg](https://github.com/FFmpeg/FFmpeg) (video and image processor) with an command-line interface. The project uses yt-dlp as its core download engine to download videos and audio from different platforms such as YouTube, Tiktok, SoundCloud, Instagram, and more. It uses FFmpeg for post-processing capabilities like format conversion (MP4, MOV, MKV), audio extraction (MP3), and thumbnail generation (PNG, JPG, WEBP).
+ 
 ## Features
 
 - **Multi-platform support** - Download from YouTube, Vimeo, SoundCloud, TikTok, Instagram, and more
@@ -35,7 +40,7 @@
 
 ### Quick Install (Recommended)
 
-Download the latest binary from our [releases page](https://github.com/yourusername/Velora/releases):
+Download the latest binary from our [releases page](https://github.com/neoarz/Velora/releases):
 
 #### macOS
 ```bash
