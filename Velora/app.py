@@ -31,7 +31,6 @@ class VeloraApp:
             "Download Thumbnail",
             "Quit"
         ]
-        
         choice = self.menu.interactive_menu(options, "Velora - Main Menu", show_ascii=True, show_instructions=True)
         return str(choice + 1)
 
@@ -43,7 +42,6 @@ class VeloraApp:
 
     def get_url_input(self):
         return self.modal.show_url_input_modal()
-    
     def get_playlist_url_input(self):
         return self.modal.show_playlist_url_input_modal()
 
@@ -111,9 +109,7 @@ class VeloraApp:
             if not url:
                 self.menu.print_warning("No URL provided. Returning to main menu.")
                 return
-                
             info = self.show_video_info(url)
-            
             if info and 'error' in info:
                 if info['error'] == 'invalid_url':
                     self.menu.print_error("Invalid video URL. Please try again with a valid URL.")
@@ -129,13 +125,9 @@ class VeloraApp:
                         continue
                     else:
                         return
-            
             resolution = self.menu.select_resolution()
-            
             include_audio = self.menu.ask_include_audio()
-            
             output_format = self.menu.select_format()
-            
             success = self.downloader.download_with_options(url, resolution, include_audio, output_format)
             if success:
                 self.menu.print_success("Download completed successfully!")
@@ -149,9 +141,7 @@ class VeloraApp:
             if not url:
                 self.menu.print_warning("No URL provided. Returning to main menu.")
                 return
-                
             info = self.show_video_info(url)
-            
             if info and 'error' in info:
                 if info['error'] == 'invalid_url':
                     self.menu.print_error("Invalid video URL. Please try again with a valid URL.")
@@ -167,7 +157,6 @@ class VeloraApp:
                         continue
                     else:
                         return
-            
             success = self.downloader.download_with_options(
                 url=url,
                 audio_only=True,
@@ -185,7 +174,6 @@ class VeloraApp:
             if not url:
                 self.menu.print_warning("No URL provided. Returning to main menu.")
                 return
-            
             if not self._is_playlist_url(url):
                 self.menu.print_error("This doesn't appear to be a playlist URL. Please check and try again.")
                 retry = self.menu.confirm_action("Would you like to try with a different URL?")
@@ -193,7 +181,6 @@ class VeloraApp:
                     continue
                 else:
                     return
-            
             playlist_info = self.get_playlist_info(url)
             if playlist_info and 'error' in playlist_info:
                 self.menu.print_error(playlist_info.get('message', 'Could not access playlist.'))
@@ -202,23 +189,18 @@ class VeloraApp:
                     continue
                 else:
                     return
-            
             download_type = self.menu.select_playlist_type()
             if download_type is None:
                 return
-            
             if download_type == "video":
                 resolution = self.menu.select_resolution()
-                
                 include_audio = self.menu.ask_include_audio()
                 output_format = self.menu.select_format()
-                
                 success = self.downloader.download_playlist_with_options(
                     url, download_type, resolution, include_audio, output_format
                 )
             else:
                 success = self.downloader.download_playlist(url, download_type)
-            
             if success:
                 self.menu.print_success("Playlist download completed successfully!")
             else:
@@ -231,9 +213,7 @@ class VeloraApp:
             if not url:
                 self.menu.print_warning("No URL provided. Returning to main menu.")
                 return
-                
             info = self.show_video_info(url)
-            
             if info and 'error' in info:
                 if info['error'] == 'invalid_url':
                     self.menu.print_error("Invalid video URL. Please try again with a valid URL.")
@@ -249,10 +229,8 @@ class VeloraApp:
                         continue
                     else:
                         return
-            
-            # Ask user to select thumbnail format
+
             thumbnail_format = self.menu.select_thumbnail_format()
-            
             success = self.downloader.download_thumbnail(url, thumbnail_format)
             if success:
                 self.menu.print_success("Thumbnail downloaded successfully!")
@@ -262,7 +240,6 @@ class VeloraApp:
 
     def ask_continue(self):
         return self.menu.confirm_action("Return to main menu?")
-    
     def _is_playlist_url(self, url):
         playlist_indicators = [
             'playlist', 'list=', 'album', 'mix', 'set',
@@ -270,7 +247,6 @@ class VeloraApp:
         ]
         url_lower = url.lower()
         return any(indicator in url_lower for indicator in playlist_indicators)
-    
     def get_playlist_info(self, url):
         try:
             info = self.downloader.get_playlist_info(url)
