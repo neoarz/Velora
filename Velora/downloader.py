@@ -68,7 +68,7 @@ class Downloader:
 
     def _add_ffmpeg_location_to_cmd(self, cmd):
         """Add ffmpeg location to yt-dlp command if available"""
-        if self.ffmpeg.ffmpeg_path:
+        if self.ffmpeg.ffmpeg_path and self.ffmpeg.ffmpeg_path is not None:
             cmd.extend(['--ffmpeg-location', self.ffmpeg.ffmpeg_path])
         return cmd
 

@@ -12,14 +12,19 @@ class FFmpegUtils:
     def __init__(self):
         self.ffmpeg_path = self._find_ffmpeg()
         self.ffprobe_path = self._find_ffprobe()
-        
-        # Debug: Print detected paths
-        if self.ffmpeg_path:
-            print(f"[DEBUG] FFmpeg found at: {self.ffmpeg_path}")
-        else:
-            print("[DEBUG] FFmpeg not found")
     
     def _find_ffmpeg(self) -> str:
+        # First try using 'which' command to find ffmpeg
+        try:
+            result = subprocess.run(['which', 'ffmpeg'], 
+                                  capture_output=True, text=True, check=True)
+            ffmpeg_path = result.stdout.strip()
+            if ffmpeg_path and self._check_executable(ffmpeg_path):
+                return ffmpeg_path
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+        
+        # Fallback to common paths
         common_paths = [
             'ffmpeg',
             '/usr/bin/ffmpeg',
@@ -41,6 +46,17 @@ class FFmpegUtils:
             return None
     
     def _find_ffprobe(self) -> str:
+        # First try using 'which' command to find ffprobe
+        try:
+            result = subprocess.run(['which', 'ffprobe'], 
+                                  capture_output=True, text=True, check=True)
+            ffprobe_path = result.stdout.strip()
+            if ffprobe_path and self._check_executable(ffprobe_path):
+                return ffprobe_path
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+            
+        # Fallback to common paths
         common_paths = [
             'ffprobe',
             '/usr/bin/ffprobe', 
