@@ -203,6 +203,25 @@ class Menu:
         
         return format_map.get(choice, "mp4")
 
+    def select_thumbnail_format(self):
+        options = [
+            "Original Format",
+            "JPG",
+            "PNG", 
+            "WEBP"
+        ]
+        
+        choice = self.interactive_menu(options, "Select thumbnail format", clear_screen=False, show_instructions=False)
+        
+        format_map = {
+            0: "original",
+            1: "jpg",
+            2: "png",
+            3: "webp"
+        }
+        
+        return format_map.get(choice, "original")
+
     def select_playlist_type(self):
         options = [
             "Download Videos (MP4)",
