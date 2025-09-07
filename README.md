@@ -2,16 +2,11 @@
 
 # Velora
 
-  
+**A terminal wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://github.com/FFmpeg/FFmpeg)**
 
 
 <img src="assets/screenshot.png" alt="Velora Screenshot" width="100%" />
 
-**A beautiful terminal wrapper for yt-dlp with an easy-to-use interface**
-
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/neoarz/Velora)](https://github.com/neoarz/Velora/releases)
-[![License](https://img.shields.io/github/license/neoarz/Velora)](LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 </div>
 
