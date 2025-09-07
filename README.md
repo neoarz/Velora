@@ -51,7 +51,7 @@ chmod +x velora
 #### Linux
 ```bash
 # Install FFmpeg dependency
-sudo apt update && sudo apt install -y ffmpeg  # Ubuntu/Debian
+sudo apt install -y ffmpeg  # Ubuntu/Debian
 # OR
 
 sudo yum install ffmpeg                        # CentOS/RHEL
