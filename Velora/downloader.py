@@ -1625,7 +1625,10 @@ class Downloader:
                 '--verbose',
                 url
             ]
-            
+
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
+
             print(f"[INFO] Downloading thumbnail from: {url}")
             print(f"[INFO] Saving to: {download_dir}")
             
@@ -1633,7 +1636,7 @@ class Downloader:
             spinner = Spinner("Downloading thumbnail...")
             spinner.start()
             
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(download_dir))
+            result = subprocess.run(cmd, capture_output=True, cwd=str(download_dir), errors='replace')
             
             spinner.stop()
             
@@ -1689,14 +1692,22 @@ class Downloader:
                     
                     # Check if yt-dlp output contains useful information
                     if result.stdout:
-                        print(f"[DEBUG] yt-dlp output: {result.stdout}")
+                        try:
+                            stdout_text = result.stdout.decode('utf-8', errors='replace') if isinstance(result.stdout, bytes) else str(result.stdout)
+                            print(f"[DEBUG] yt-dlp output: {stdout_text}")
+                        except:
+                            print("[DEBUG] yt-dlp output: (unable to decode)")
                     
                     print("[WARNING] Thumbnail download completed but file not found")
                     return False
             else:
                 print(f"[ERROR] Thumbnail download failed with exit code: {result.returncode}")
                 if result.stderr:
-                    print(f"[ERROR] {result.stderr}")
+                    try:
+                        stderr_text = result.stderr.decode('utf-8', errors='replace') if isinstance(result.stderr, bytes) else str(result.stderr)
+                        print(f"[ERROR] {stderr_text}")
+                    except:
+                        print("[ERROR] (unable to decode error message)")
                 return False
                 
         except Exception as e:
