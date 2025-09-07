@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""
-Entry point script for Velora - PyInstaller compatible
-"""
+
+# PyInstaller 
 import sys
 import os
 
@@ -13,8 +12,15 @@ sys.path.insert(0, current_dir)
 from Velora.app import VeloraApp
 
 def main():
-    app = VeloraApp()
-    app.run()
+    try:
+        app = VeloraApp()
+        app.run()
+    except KeyboardInterrupt:
+        print("\n\n Goodbye!")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n An unexpected error occurred: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
