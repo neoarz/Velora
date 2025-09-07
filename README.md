@@ -165,8 +165,3 @@ If you find Velora useful, please consider:
 - Starring this repository
 - Reporting bugs in [Issues](https://github.com/neoarz/Velora/issues)
 - Suggesting features in [Discussions](https://github.com/neoarz/Velora/discussions)
-
----
-
-Made with ❤️ by the neo
-
