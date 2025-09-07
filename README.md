@@ -10,14 +10,14 @@
 
 <br>
 
-> [!NOTE]
+> [!IMPORTANT]
 > **TLDR: Windows Sucks**
 > 
 > Developing this entire project on Linux and macoOS, I have no intention of giving any support to windows unless someone makes a PR for it. If you are on Windows and would like you use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
 
 <br>
 
-> [!WARNING]
+> [!CAUTION]
 > **Velora is Still in BETA**
 > 
 > I've only recently made this project and not everything is perfect. Expect bugs and issues. I really ask you to make a [github issue](https://github.com/neoarz/Velora/issues) if you face any problems, or dm me on discord `neoarz`
