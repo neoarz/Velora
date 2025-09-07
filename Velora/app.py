@@ -250,7 +250,10 @@ class VeloraApp:
                     else:
                         return
             
-            success = self.downloader.download_thumbnail(url)
+            # Ask user to select thumbnail format
+            thumbnail_format = self.menu.select_thumbnail_format()
+            
+            success = self.downloader.download_thumbnail(url, thumbnail_format)
             if success:
                 self.menu.print_success("Thumbnail downloaded successfully!")
             else:

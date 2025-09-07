@@ -807,6 +807,110 @@ class Downloader:
             print(f"[ERROR] Subprocess format conversion failed: {e}")
             return False
 
+    def _convert_thumbnail_format(self, input_path, target_format):
+        """Convert thumbnail to target format using FFmpeg"""
+        try:
+            if target_format == "original":
+                return input_path  # No conversion needed
+            
+            # Check if the file is already in the target format
+            current_ext = input_path.suffix.lower().lstrip('.')
+            if current_ext == target_format.lower():
+                print(f"[INFO] Thumbnail is already in {target_format.upper()} format, no conversion needed.")
+                return input_path
+            
+            # Create output path with new extension
+            output_path = input_path.with_suffix(f'.{target_format}')
+            
+            # Check if FFmpeg is available
+            if not self.ffmpeg.is_available():
+                print("[WARNING] FFmpeg not available for thumbnail conversion")
+                print("[INFO] Keeping original thumbnail format")
+                return input_path
+            
+            if FFMPEG_PYTHON_AVAILABLE:
+                import ffmpeg
+                
+                print(f"[INFO] Converting from {current_ext.upper()} to {target_format.upper()}...")
+                
+                # Image conversion settings
+                if target_format == 'jpg':
+                    stream = ffmpeg.input(str(input_path))
+                    stream = ffmpeg.output(stream, str(output_path), q=2)  # High quality JPEG
+                    ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                    
+                elif target_format == 'png':
+                    stream = ffmpeg.input(str(input_path))
+                    stream = ffmpeg.output(stream, str(output_path))  # PNG with default settings
+                    ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                    
+                elif target_format == 'webp':
+                    stream = ffmpeg.input(str(input_path))
+                    stream = ffmpeg.output(stream, str(output_path), quality=80)  # WebP with good quality
+                    ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                
+                # Check if conversion was successful
+                if output_path.exists() and output_path.stat().st_size > 0:
+                    input_path.unlink()  # Remove original file
+                    return output_path
+                else:
+                    print(f"[WARNING] Conversion to {target_format.upper()} failed - output file not created")
+                    return input_path
+            
+            else:
+                # Fallback to subprocess method
+                return self._subprocess_convert_thumbnail(input_path, target_format)
+            
+        except Exception as e:
+            print(f"[WARNING] Thumbnail format conversion failed: {e}")
+            print("[INFO] Keeping original thumbnail format")
+            return input_path
+
+    def _subprocess_convert_thumbnail(self, input_path, target_format):
+        """Fallback thumbnail conversion using subprocess"""
+        try:
+            output_path = input_path.with_suffix(f'.{target_format}')
+            
+            print(f"[INFO] Using FFmpeg subprocess for conversion...")
+            
+            if target_format == 'jpg':
+                cmd = [
+                    self.ffmpeg.ffmpeg_path, '-i', str(input_path),
+                    '-q:v', '2', '-y', str(output_path)
+                ]
+            elif target_format == 'png':
+                cmd = [
+                    self.ffmpeg.ffmpeg_path, '-i', str(input_path),
+                    '-y', str(output_path)
+                ]
+            elif target_format == 'webp':
+                cmd = [
+                    self.ffmpeg.ffmpeg_path, '-i', str(input_path),
+                    '-quality', '80', '-y', str(output_path)
+                ]
+            else:
+                print(f"[WARNING] Unsupported format: {target_format}")
+                return input_path
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
+                input_path.unlink()  # Remove original
+                print(f"[SUCCESS] Successfully converted to {target_format.upper()}")
+                return output_path
+            else:
+                if result.stderr:
+                    print(f"[WARNING] FFmpeg conversion error: {result.stderr.strip()}")
+                else:
+                    print(f"[WARNING] FFmpeg conversion failed with exit code: {result.returncode}")
+                print("[INFO] Keeping original thumbnail format")
+                return input_path
+                
+        except Exception as e:
+            print(f"[WARNING] Subprocess thumbnail conversion failed: {e}")
+            print("[INFO] Keeping original thumbnail format")
+            return input_path
+
     def _ffmpeg_convert_to_mov(self, input_path, output_path):
         """Convert video to MOV format using FFmpeg with proper codec settings"""
         try:
@@ -1491,7 +1595,7 @@ class Downloader:
             print(f"[ERROR] Playlist MOV conversion failed: {e}")
             return False
 
-    def download_thumbnail(self, url):
+    def download_thumbnail(self, url, target_format="original"):
         """Download thumbnail of a video"""
         try:
             print("[INFO] Preparing to download thumbnail...")
@@ -1544,6 +1648,19 @@ class Downloader:
                 if unique_thumbnails:
                     # Get the most recently created thumbnail
                     latest_thumbnail = max(unique_thumbnails, key=lambda x: x.stat().st_mtime)
+                    
+                    # Convert to target format if requested and needed
+                    if target_format != "original":
+                        current_ext = latest_thumbnail.suffix.lower().lstrip('.')
+                        if current_ext == target_format.lower():
+                            print(f"[INFO] Thumbnail is already in {target_format.upper()} format!")
+                        else:
+                            print(f"[INFO] Converting thumbnail from {current_ext.upper()} to {target_format.upper()} format...")
+                            converted_thumbnail = self._convert_thumbnail_format(latest_thumbnail, target_format)
+                            if converted_thumbnail != latest_thumbnail:
+                                latest_thumbnail = converted_thumbnail
+                                print(f"[SUCCESS] Thumbnail converted to {target_format.upper()} format!")
+                    
                     print(f"[SUCCESS] Thumbnail downloaded successfully!")
                     print(f"[INFO] Saved as: {latest_thumbnail.name}")
                     print(f"[INFO] Location: {latest_thumbnail.parent}")
