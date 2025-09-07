@@ -83,54 +83,56 @@ chmod +x velora
 
 
 ### Build from Source
-
 If you prefer to build from source or contribute to development:
 
 #### Prerequisites
 - Python 3.8 or higher
 - pip (Python package installer)
 
+> [!TIP]
+> **Don't have Python installed?**
+> - **macOS:** Install via [Homebrew](https://brew.sh/): `brew install python` or download from [python.org](https://www.python.org/downloads/)
+> - **Linux:** Usually pre-installed. If not: `sudo apt install python3 python3-pip` (Ubuntu/Debian) or equivalent for your distro
+> - **Windows (WSL):** Follow Linux instructions above in your WSL terminal
+
 #### macOS
 ```bash
 # Install FFmpeg and clone repository
 brew install ffmpeg
-git clone https://github.com/yourusername/Velora.git
+
+#Clone Repo
+git clone https://github.com/neoarz/Velora.git
 cd Velora
 
 # Set up virtual environment and install dependencies
 python3 -m venv velora_env
 source velora_env/bin/activate
 pip install -r requirements.txt
+
+#Run the program
+python -m Velora
 ```
 
 #### Linux (Ubuntu/Debian)
 ```bash
 # Install FFmpeg and clone repository
-sudo apt update && sudo apt install -y ffmpeg python3-venv
-git clone https://github.com/yourusername/Velora.git
+sudo apt update && sudo apt install -y ffmpeg python3-venv python3-pip
+
+#Clone Repo
+git clone https://github.com/neoarz/Velora.git
 cd Velora
 
 # Set up virtual environment and install dependencies
 python3 -m venv velora_env
 source velora_env/bin/activate
 pip install -r requirements.txt
-```
 
-For other Linux distributions, replace `apt` with your package manager (`yum`, `pacman`, `zypper`).
-
-## Usage
-
-### Running Velora
-
-#### Binary Installation
-```bash
-velora
-```
-
-#### From Source
-```bash
+#Run the program
 python -m Velora
 ```
+> **Note:** For other Linux distributions, replace `apt` with your package manager (`yum`, `pacman`, `zypper`)..
+
+
 
 ### How to Use
 
