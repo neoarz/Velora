@@ -160,9 +160,6 @@ We welcome contributions! Here's how you can help:
 4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
-## License
-
-This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
@@ -170,3 +167,8 @@ If you find Velora useful, please consider:
 - Starring this repository
 - Reporting bugs in [Issues](https://github.com/neoarz/Velora/issues)
 - Suggesting features in [Discussions](https://github.com/neoarz/Velora/discussions)
+
+## License
+
+This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
+
