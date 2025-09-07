@@ -51,13 +51,13 @@ chmod +x velora
 #### Linux
 ```bash
 # Install FFmpeg dependency
-sudo apt install -y ffmpeg  # Ubuntu/Debian
+sudo apt install -y ffmpeg             # Ubuntu/Debian
 # OR
 
-sudo yum install ffmpeg                        # CentOS/RHEL
+sudo yum install ffmpeg                # CentOS/RHEL
 # OR
 
-sudo pacman -S ffmpeg                          # Arch Linux
+sudo pacman -S ffmpeg                  # Arch Linux
 
 # Download latest release from GitHub, unzip, and run
 # Go to https://github.com/neoarz/Velora/releases/latest
@@ -81,8 +81,7 @@ chmod +x velora
 
 
 
-
-### Build from Source
+## Build from Source
 If you prefer to build from source or contribute to development:
 
 #### Prerequisites
@@ -95,43 +94,57 @@ If you prefer to build from source or contribute to development:
 > - **Linux:** Usually pre-installed. If not: `sudo apt install python3 python3-pip` (Ubuntu/Debian) or equivalent for your distro
 > - **Windows (WSL):** Follow Linux instructions above in your WSL terminal
 
-#### macOS
+<details>
+<summary><strong>macOS Instructions</strong></summary>
+
 ```bash
 # Install FFmpeg and clone repository
 brew install ffmpeg
-
-#Clone Repo
+# Clone Repo
 git clone https://github.com/neoarz/Velora.git
 cd Velora
-
 # Set up virtual environment and install dependencies
 python3 -m venv velora_env
 source velora_env/bin/activate
 pip install -r requirements.txt
-
-#Run the program
+# Run the program
 python -m Velora
 ```
 
-#### Linux (Ubuntu/Debian)
+</details>
+
+<details>
+<summary><strong>Linux (Ubuntu/Debian) Instructions</strong></summary>
+
 ```bash
 # Install FFmpeg and clone repository
 sudo apt update && sudo apt install -y ffmpeg python3-venv python3-pip
-
-#Clone Repo
+# Clone Repo
 git clone https://github.com/neoarz/Velora.git
 cd Velora
-
 # Set up virtual environment and install dependencies
 python3 -m venv velora_env
 source velora_env/bin/activate
 pip install -r requirements.txt
-
-#Run the program
+# Run the program
 python -m Velora
 ```
-> **Note:** For other Linux distributions, replace `apt` with your package manager (`yum`, `pacman`, `zypper`)..
 
+> **Note:** For other Linux distributions, replace `apt` with your package manager (`yum`, `pacman`, `zypper`)
+
+</details>
+
+<details>
+<summary><strong>Windows Instructions</strong></summary>
+
+```bash
+# Windows is not currently supported for building from source
+# Please install WSL (Windows Subsystem for Linux) first:
+# https://learn.microsoft.com/en-us/windows/wsl/install
+# After installing WSL, open your WSL terminal and follow the Linux instructions above
+```
+
+</details>
 
 
 ### How to Use
@@ -143,46 +156,6 @@ python -m Velora
 5. **Enjoy your content!**
 
 
-## Troubleshooting
-
-<details>
-<summary><strong>FFmpeg Issues</strong></summary>
-
-If you encounter video conversion errors:
-- Verify FFmpeg installation: `ffmpeg -version`
-- Reinstall FFmpeg through your package manager
-- Check if FFmpeg is in your system PATH
-</details>
-
-<details>
-<summary><strong>Download Issues</strong></summary>
-
-If downloads fail:
-- Check your internet connection
-- Verify the URL is correct and accessible
-- Some videos may be region-restricted or private
-- Try a different video format if conversion fails
-- Update yt-dlp: `pip install --upgrade yt-dlp`
-</details>
-
-<details>
-<summary><strong>Virtual Environment Issues (Source builds)</strong></summary>
-
-For source installations:
-- Ensure you're using `python3` instead of `python`
-- Verify the virtual environment was created successfully
-- Update pip: `pip install --upgrade pip`
-- Install wheel: `pip install wheel`
-</details>
-
-<details>
-<summary><strong>Permission Errors</strong></summary>
-
-If you get permission errors:
-- Make sure the binary has execute permissions: `chmod +x velora`
-- On Linux/macOS: Try running installation commands with `sudo`
-- Ensure you have write permissions to the installation directory
-</details>
 
 ## Contributing
 
@@ -202,12 +175,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you find Velora useful, please consider:
 - Starring this repository
-- Reporting bugs in [Issues](https://github.com/yourusername/Velora/issues)
-- Suggesting features in [Discussions](https://github.com/yourusername/Velora/discussions)
+- Reporting bugs in [Issues](https://github.com/neoarz/Velora/issues)
+- Suggesting features in [Discussions](https://github.com/neoarz/Velora/discussions)
 
 ---
 
-<div align="center">
-Made with ❤️ by the Velora team
-</div>
+Made with ❤️ by the neo
 
