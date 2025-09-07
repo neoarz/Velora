@@ -4,9 +4,7 @@
 
 **A terminal wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [FFmpeg](https://github.com/FFmpeg/FFmpeg)**
 
-
 <img src="assets/screenshot.png" alt="Velora Screenshot" width="100%" />
-
 
 </div>
 
@@ -142,18 +140,6 @@ python -m Velora
 4. **Watch the progress** in real-time
 5. **Enjoy your content!**
 
-## Supported Platforms
-
-Velora works with any site supported by yt-dlp, including:
-
-| Platform | Video | Audio | Playlists |
-|----------|-------|-------|-----------|
-| YouTube | ✅ | ✅ | ✅ |
-| Vimeo | ✅ | ✅ | ✅ |
-| SoundCloud | ✅ | ✅ | ✅ |
-| TikTok | ✅ | ✅ | ❌ |
-| Instagram | ✅ | ✅ | ❌ |
-| And 1000+ more... | ✅ | ✅ | Varies |
 
 ## Troubleshooting
 
