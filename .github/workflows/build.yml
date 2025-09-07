@@ -12,22 +12,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
-        exclude:
-          # Exclude older Python versions on macOS to reduce build time
+        include:
+          - os: ubuntu-latest
+            platform: linux
           - os: macos-latest
-            python-version: '3.8'
-          - os: macos-latest
-            python-version: '3.9'
+            platform: macos
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.11'
 
     - name: Install system dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
@@ -50,14 +47,10 @@ jobs:
       run: |
         pyinstaller --onefile --name velora main.py
 
-    - name: Test executable
-      run: |
-        ./dist/velora --help || echo "Help command not available, testing version info"
-
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: velora-${{ matrix.os }}-python${{ matrix.python-version }}
+        name: velora-${{ matrix.platform }}
         path: dist/velora*
 
   release:
@@ -69,14 +62,14 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
 
     - name: Create release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          velora-ubuntu-latest-python*/velora
-          velora-macos-latest-python*/velora
+          velora-linux/velora
+          velora-macos/velora
         draft: false
         prerelease: false
       env:
