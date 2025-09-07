@@ -13,7 +13,7 @@
 > [!NOTE]
 > **TLDR: Windows Sucks**
 > 
-> Developing this entire project in linux and macos, I have no intention of giving any support to windows unless someone gives a PR for it. If you are on Windows and would like you use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
+> Developing this entire project on Linux and macoOS, I have no intention of giving any support to windows unless someone makes a PR for it. If you are on Windows and would like you use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
 
 <br>
 
@@ -94,48 +94,47 @@ If you prefer to build from source or contribute to development:
 > - **Linux:** Usually pre-installed. If not: `sudo apt install python3 python3-pip` (Ubuntu/Debian) or equivalent for your distro
 > - **Windows (WSL):** Follow Linux instructions above in your WSL terminal
 
-<details>
-<summary><strong>macOS Instructions</strong></summary>
+#### macOS Instructions
 
 ```bash
 # Install FFmpeg and clone repository
 brew install ffmpeg
+
 # Clone Repo
 git clone https://github.com/neoarz/Velora.git
 cd Velora
+
 # Set up virtual environment and install dependencies
 python3 -m venv velora_env
 source velora_env/bin/activate
 pip install -r requirements.txt
+
 # Run the program
 python -m Velora
 ```
 
-</details>
-
-<details>
-<summary><strong>Linux (Ubuntu/Debian) Instructions</strong></summary>
+#### Linux (Ubuntu/Debian) Instructions
 
 ```bash
 # Install FFmpeg and clone repository
 sudo apt update && sudo apt install -y ffmpeg python3-venv python3-pip
+
 # Clone Repo
 git clone https://github.com/neoarz/Velora.git
 cd Velora
+
 # Set up virtual environment and install dependencies
 python3 -m venv velora_env
 source velora_env/bin/activate
 pip install -r requirements.txt
+
 # Run the program
 python -m Velora
 ```
 
 > **Note:** For other Linux distributions, replace `apt` with your package manager (`yum`, `pacman`, `zypper`)
 
-</details>
-
-<details>
-<summary><strong>Windows Instructions</strong></summary>
+#### Windows Instructions
 
 ```bash
 # Windows is not currently supported for building from source
@@ -143,17 +142,6 @@ python -m Velora
 # https://learn.microsoft.com/en-us/windows/wsl/install
 # After installing WSL, open your WSL terminal and follow the Linux instructions above
 ```
-
-</details>
-
-
-### How to Use
-
-1. **Select your action** from the main menu
-2. **Enter the URL** you want to download
-3. **Choose your format** (video or audio)
-4. **Watch the progress** in real-time
-5. **Enjoy your content!**
 
 
 
@@ -169,7 +157,7 @@ We welcome contributions! Here's how you can help:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
