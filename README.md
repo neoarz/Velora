@@ -11,7 +11,6 @@
 </div>
 
 <br>
-<br>
 
 > [!NOTE]
 > **TLDR: Windows Sucks**
