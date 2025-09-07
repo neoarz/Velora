@@ -1490,3 +1490,86 @@ class Downloader:
         except Exception as e:
             print(f"[ERROR] Playlist MOV conversion failed: {e}")
             return False
+
+    def download_thumbnail(self, url):
+        """Download thumbnail of a video"""
+        try:
+            print("[INFO] Preparing to download thumbnail...")
+            
+            # Create downloads directory
+            download_dir = self._create_download_dir()
+            
+            # Base command for thumbnail download
+            cmd = [
+                self.yt_dlp_path,
+                '--write-thumbnail',
+                '--skip-download',
+                '--no-write-info-json',
+                '--output', str(download_dir / '%(title)s.%(ext)s'),
+                '--verbose',
+                url
+            ]
+            
+            print(f"[INFO] Downloading thumbnail from: {url}")
+            print(f"[INFO] Saving to: {download_dir}")
+            
+            from .ui.progress import Spinner
+            spinner = Spinner("Downloading thumbnail...")
+            spinner.start()
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(download_dir))
+            
+            spinner.stop()
+            
+            if result.returncode == 0:
+                # Find the downloaded thumbnail with more comprehensive search
+                thumbnail_files = []
+                
+                # Search for various thumbnail formats and patterns
+                patterns = [
+                    "*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.image",
+                    "*.JPG", "*.JPEG", "*.PNG", "*.WEBP", "*.GIF", "*.IMAGE"
+                ]
+                
+                for pattern in patterns:
+                    thumbnail_files.extend(download_dir.glob(pattern))
+                
+                # Also search recursively in case yt-dlp created subdirectories
+                for pattern in patterns:
+                    thumbnail_files.extend(download_dir.rglob(pattern))
+                
+                # Remove duplicates and sort by modification time
+                unique_thumbnails = list(set(thumbnail_files))
+                
+                if unique_thumbnails:
+                    # Get the most recently created thumbnail
+                    latest_thumbnail = max(unique_thumbnails, key=lambda x: x.stat().st_mtime)
+                    print(f"[SUCCESS] Thumbnail downloaded successfully!")
+                    print(f"[INFO] Saved as: {latest_thumbnail.name}")
+                    print(f"[INFO] Location: {latest_thumbnail.parent}")
+                    return True
+                else:
+                    # Debug: list all files in the download directory
+                    print("[DEBUG] Files found in download directory:")
+                    all_files = list(download_dir.glob("*"))
+                    if all_files:
+                        for file in all_files:
+                            print(f"[DEBUG] - {file.name}")
+                    else:
+                        print("[DEBUG] No files found in download directory")
+                    
+                    # Check if yt-dlp output contains useful information
+                    if result.stdout:
+                        print(f"[DEBUG] yt-dlp output: {result.stdout}")
+                    
+                    print("[WARNING] Thumbnail download completed but file not found")
+                    return False
+            else:
+                print(f"[ERROR] Thumbnail download failed with exit code: {result.returncode}")
+                if result.stderr:
+                    print(f"[ERROR] {result.stderr}")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] Error during thumbnail download: {e}")
+            return False

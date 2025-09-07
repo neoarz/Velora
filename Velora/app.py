@@ -28,6 +28,7 @@ class VeloraApp:
             "Download Video",
             "Download Audio Only", 
             "Download Playlist",
+            "Download Thumbnail",
             "Quit"
         ]
         
@@ -36,7 +37,7 @@ class VeloraApp:
 
     def get_menu_choice(self):
         choice = self.show_main_menu()
-        if choice == '4':
+        if choice == '5':
             return 'quit'
         return choice
 
@@ -91,6 +92,8 @@ class VeloraApp:
                     self.handle_download_audio()
                 elif choice == '3':
                     self.handle_download_playlist()
+                elif choice == '4':
+                    self.handle_download_thumbnail()
 
                 if choice != 'quit':
                     input("\nPress Enter to return to main menu...")
@@ -206,6 +209,7 @@ class VeloraApp:
             
             if download_type == "video":
                 resolution = self.menu.select_resolution()
+                
                 include_audio = self.menu.ask_include_audio()
                 output_format = self.menu.select_format()
                 
@@ -219,6 +223,38 @@ class VeloraApp:
                 self.menu.print_success("Playlist download completed successfully!")
             else:
                 self.menu.print_error("Playlist download failed. Please check the URL and try again.")
+            break
+
+    def handle_download_thumbnail(self):
+        while True:
+            url = self.get_url_input()
+            if not url:
+                self.menu.print_warning("No URL provided. Returning to main menu.")
+                return
+                
+            info = self.show_video_info(url)
+            
+            if info and 'error' in info:
+                if info['error'] == 'invalid_url':
+                    self.menu.print_error("Invalid video URL. Please try again with a valid URL.")
+                    retry = self.menu.confirm_action("Would you like to try with a different URL?")
+                    if retry:
+                        continue
+                    else:
+                        return
+                else:
+                    self.menu.print_error(info.get('message', 'Could not access video.'))
+                    retry = self.menu.confirm_action("Would you like to try with a different URL?")
+                    if retry:
+                        continue
+                    else:
+                        return
+            
+            success = self.downloader.download_thumbnail(url)
+            if success:
+                self.menu.print_success("Thumbnail downloaded successfully!")
+            else:
+                self.menu.print_error("Thumbnail download failed. Please check the URL and try again.")
             break
 
     def ask_continue(self):
