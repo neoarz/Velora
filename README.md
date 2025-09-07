@@ -10,7 +10,14 @@
 
 </div>
 
----
+<br>
+<br>
+
+> [!NOTE]
+> **TLDR: Windows Sucks**
+> 
+> Developing this entire project in linux and macos, I have no intention of giving any support to windows unless someone gives a PR for it. If you are on Windows and would like you use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
+
 
 ## Features
 
