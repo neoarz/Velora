@@ -273,7 +273,19 @@ class Downloader:
                 if success:
                     # Remove the temporary high-res file
                     temp_file.unlink()
-                    print(f"\n[SUCCESS] Instagram video downloaded and downscaled to {target_resolution}!")
+                    print(f"[SUCCESS] Instagram video downscaled to {target_resolution}")
+                    
+                    # Apply post-processing: remove audio if needed
+                    if not include_audio:
+                        print("Removing audio from downscaled Instagram video...")
+                        self._remove_audio_from_specific_file(final_path)
+                    
+                    # Apply post-processing: convert to target format if needed
+                    if output_format and output_format.lower() != 'mp4':
+                        print(f"Converting downscaled Instagram video to {output_format.upper()} format...")
+                        self._convert_specific_file_to_format(final_path, output_format)
+                    
+                    print(f"[SUCCESS] Instagram video processing completed!")
                     self._show_download_info(download_dir)
                     return True
                 else:
@@ -282,6 +294,16 @@ class Downloader:
                     fallback_path = download_dir / final_name
                     temp_file.rename(fallback_path)
                     print(f"[INFO] Keeping high-resolution version: {fallback_path}")
+                    
+                    # Still apply post-processing to the original file
+                    if not include_audio:
+                        print("Removing audio from original Instagram video...")
+                        self._remove_audio_from_specific_file(fallback_path)
+                    
+                    if output_format and output_format.lower() != 'mp4':
+                        print(f"Converting original Instagram video to {output_format.upper()} format...")
+                        self._convert_specific_file_to_format(fallback_path, output_format)
+                    
                     return True  # Return True since we have a file, even if not downscaled
             else:
                 print("[ERROR] FFmpeg not available for downscaling")
@@ -289,6 +311,16 @@ class Downloader:
                 fallback_path = download_dir / final_name
                 temp_file.rename(fallback_path)
                 print(f"[INFO] Keeping high-resolution version: {fallback_path}")
+                
+                # Still apply post-processing even without downscaling
+                if not include_audio:
+                    print("Removing audio from original Instagram video...")
+                    self._remove_audio_from_specific_file(fallback_path)
+                
+                if output_format and output_format.lower() != 'mp4':
+                    print(f"Converting original Instagram video to {output_format.upper()} format...")
+                    self._convert_specific_file_to_format(fallback_path, output_format)
+                
                 return True  # Return True since we have a file, even if not downscaled
                 
         except Exception as e:
