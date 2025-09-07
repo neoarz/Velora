@@ -15,112 +15,36 @@ A beautiful terminal wrapper for yt-dlp with an easy-to-use interface.
 
 - Python 3.8 or higher
 - pip (Python package installer)
-- FFmpeg (required for video format conversion)
 
-### Step 1: Install FFmpeg
+### macOS
 
-FFmpeg is required for video format conversion and processing.
-
-#### Windows
-
-1. Download FFmpeg from https://ffmpeg.org/download.html#build-windows
-2. Extract the zip file to a folder (e.g., `C:\ffmpeg`)
-3. Add FFmpeg to your system PATH:
-   - Open System Properties > Environment Variables
-   - Add the FFmpeg bin folder to your PATH variable
-   - Test by opening Command Prompt and running: `ffmpeg -version`
-
-#### macOS
-
-Using Homebrew (recommended):
-```
+```bash
+# Install FFmpeg and clone the repository
 brew install ffmpeg
+git clone https://github.com/yourusername/Velora.git
+cd Velora
+
+# Set up virtual environment and install dependencies
+python3 -m venv velora_env
+source velora_env/bin/activate
+pip install -r requirements.txt
 ```
 
-Or download from https://ffmpeg.org/download.html#build-mac
+### Linux (Ubuntu/Debian)
 
-#### Linux (Ubuntu/Debian)
+```bash
+# Install FFmpeg and clone the repository
+sudo apt update && sudo apt install -y ffmpeg python3-venv
+git clone https://github.com/yourusername/Velora.git
+cd Velora
 
+# Set up virtual environment and install dependencies
+python3 -m venv velora_env
+source velora_env/bin/activate
+pip install -r requirements.txt
 ```
-sudo apt update
-sudo apt install ffmpeg
-```
 
-For other Linux distributions, use your package manager or download from https://ffmpeg.org/download.html
-
-### Step 2: Install Velora
-
-#### Windows
-
-1. Open Command Prompt or PowerShell
-2. Clone or download the repository:
-   ```
-   git clone https://github.com/yourusername/Velora.git
-   cd Velora
-   ```
-
-3. Create a virtual environment:
-   ```
-   python -m venv velora_env
-   ```
-
-4. Activate the virtual environment:
-   ```
-   velora_env\Scripts\activate
-   ```
-
-5. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-#### macOS
-
-1. Open Terminal
-2. Clone or download the repository:
-   ```
-   git clone https://github.com/yourusername/Velora.git
-   cd Velora
-   ```
-
-3. Create a virtual environment:
-   ```
-   python3 -m venv velora_env
-   ```
-
-4. Activate the virtual environment:
-   ```
-   source velora_env/bin/activate
-   ```
-
-5. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-#### Linux
-
-1. Open your terminal
-2. Clone or download the repository:
-   ```
-   git clone https://github.com/yourusername/Velora.git
-   cd Velora
-   ```
-
-3. Create a virtual environment:
-   ```
-   python3 -m venv velora_env
-   ```
-
-4. Activate the virtual environment:
-   ```
-   source velora_env/bin/activate
-   ```
-
-5. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+For other Linux distributions, replace `apt` with your package manager (e.g., `yum`, `pacman`, `zypper`).
 
 ## Usage
 
@@ -168,16 +92,11 @@ Velora can download content from:
 
 If you get errors related to video conversion:
 - Verify FFmpeg is installed: `ffmpeg -version`
-- On Windows, ensure FFmpeg is in your system PATH
 - On Linux/macOS, try reinstalling FFmpeg through your package manager
 
 ### Virtual Environment Issues
 
 If you encounter issues with the virtual environment:
-
-**Windows:**
-- Make sure you're using the correct activation command
-- Check that the virtual environment path is correct
 
 **macOS/Linux:**
 - Ensure you're using `python3` instead of `python`
