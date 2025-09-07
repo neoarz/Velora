@@ -9,8 +9,8 @@
 
 **A beautiful terminal wrapper for yt-dlp with an easy-to-use interface**
 
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/yourusername/Velora)](https://github.com/yourusername/Velora/releases)
-[![License](https://img.shields.io/github/license/yourusername/Velora)](LICENSE)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/neoarz/Velora)](https://github.com/neoarz/Velora/releases)
+[![License](https://img.shields.io/github/license/neoarz/Velora)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 </div>
