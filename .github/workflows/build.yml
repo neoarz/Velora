@@ -2,11 +2,11 @@ name: Build Velora
 
 on:
   push:
-    branches: [ main, master, ui ]  # Add your branch here
+    branches: [ main, master, ui ]  
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:  
 
 jobs:
   build:
