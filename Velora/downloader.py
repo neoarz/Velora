@@ -105,29 +105,17 @@ class Downloader:
                     print("[INFO] TikTok downscaling failed, trying regular download...")
                     # Continue with regular download as fallback
             
-            # Regular download (or fallback from Instagram)
-            # Build format string based on options
-            format_opts = self._build_format_string(resolution, include_audio, output_format)
+            # Always use fallback method for better reliability
+            # Download video first, then post-process as needed
+            return self._download_video_fallback(url, download_dir, resolution, include_audio, output_format)
 
-            # Base command
-            cmd = [
-                self.yt_dlp_path,
-                '--no-playlist',  # Download single video
-                '-o', str(download_dir / '%(title)s.%(ext)s'),  # Output template
-                '--progress',
-                '--no-warnings',
-            ]
+        except Exception as e:
+            print(f"\n[ERROR] Error during download: {e}")
+            return False
 
-            # Add format options
-            if format_opts:
-                cmd.extend(format_opts)
-
-            # Add ffmpeg location if available
-            cmd = self._add_ffmpeg_location_to_cmd(cmd)
-
-            # Add URL
-            cmd.append(url)
-
+    def _download_video_fallback(self, url, download_dir, resolution="best", include_audio=True, output_format="mp4"):
+        """Fallback method: download video first, then post-process as needed"""
+        try:
             print(f"Downloading to: {download_dir}")
             print(f"URL: {url}")
             print(f"Resolution: {resolution}")
@@ -135,49 +123,79 @@ class Downloader:
             print(f"Format: {output_format.upper()}")
             print("Starting download...\n")
 
-            # Run yt-dlp
+            # Download video without post-processing first
+            cmd = [
+                self.yt_dlp_path,
+                '--no-playlist',
+                '-f', 'best',  # Download best quality video with audio
+                '-o', str(download_dir / '%(title)s.%(ext)s'),
+                '--progress',
+                '--no-warnings',
+                url
+            ]
+
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
+
             result = subprocess.run(
                 cmd,
                 cwd=str(download_dir),
-                capture_output=False,  # Show progress in real-time
+                capture_output=False,
                 text=True
             )
 
-            if result.returncode == 0:
-                print("\n[SUCCESS] Download completed successfully!")
-                
-                # Remove audio if "No audio" was selected and we got a combined file
-                if not include_audio:
-                    self._remove_audio_from_downloaded_files(download_dir)
-                
-                # Handle format post-processing if needed
-                if hasattr(self, '_desired_format') and self._desired_format:
-                    # Check if conversion is actually needed
-                    video_files = []
-                    for ext in ['*.mp4', '*.mkv', '*.webm', '*.avi', '*.mov']:
-                        video_files.extend(download_dir.glob(ext))
-                    
-                    if video_files:
-                        latest_video = max(video_files, key=lambda x: x.stat().st_mtime)
-                        current_ext = latest_video.suffix.lower().lstrip('.')
-                        target_ext = self._desired_format.lower()
-                        
-                        if current_ext != target_ext:
-                            success = self._convert_to_format(download_dir, self._desired_format)
-                            if not success:
-                                print(f"[WARNING] {self._desired_format.upper()} conversion failed, but original download succeeded")
-                        else:
-                            print(f"[INFO] Video already in {self._desired_format.upper()} format, no conversion needed.")
-                
-                self._show_download_info(download_dir)
-                return True
-            else:
-                print(f"\n[ERROR] Download failed with exit code: {result.returncode}")
-                print("[ERROR] Download failed. Please check the URL and try again.")
+            if result.returncode != 0:
+                print(f"[ERROR] Video download failed with exit code: {result.returncode}")
                 return False
 
+            # Find the downloaded video file
+            video_files = []
+            for ext in ['*.mp4', '*.mkv', '*.webm', '*.avi', '*.mov']:
+                video_files.extend(download_dir.glob(ext))
+
+            if not video_files:
+                print("[ERROR] No video file found after download")
+                return False
+
+            # Get the most recent video file
+            latest_video = max(video_files, key=lambda f: f.stat().st_mtime)
+            print(f"[INFO] Downloaded: {latest_video.name}")
+
+            # Post-process as needed
+            success = True
+            
+            # Handle audio removal if needed
+            if not include_audio and self.ffmpeg.is_available():
+                print("[INFO] Removing audio track...")
+                no_audio_path = latest_video.with_stem(f"{latest_video.stem}_no_audio")
+                
+                if self._remove_audio_with_ffmpeg(str(latest_video), str(no_audio_path)):
+                    latest_video.unlink()  # Remove original
+                    latest_video = no_audio_path  # Update reference
+                    print("[SUCCESS] Audio track removed")
+                else:
+                    print("[WARNING] Failed to remove audio, keeping original")
+
+            # Handle format conversion if needed
+            current_ext = latest_video.suffix.lower().lstrip('.')
+            target_ext = output_format.lower()
+            
+            if current_ext != target_ext and self.ffmpeg.is_available():
+                print(f"[INFO] Converting to {output_format.upper()} format...")
+                converted_path = latest_video.with_suffix(f'.{target_ext}')
+                
+                if self._convert_video_format(str(latest_video), str(converted_path), output_format):
+                    latest_video.unlink()  # Remove original
+                    print(f"[SUCCESS] Converted to {output_format.upper()}")
+                else:
+                    print(f"[WARNING] Format conversion failed, keeping original {current_ext.upper()}")
+
+            print("\n[SUCCESS] Download completed successfully!")
+            self._show_download_info(download_dir)
+            return True
+
         except Exception as e:
-            print(f"\n[ERROR] Error during download: {e}")
+            print(f"[ERROR] Fallback video download failed: {e}")
             return False
 
     def _needs_instagram_downscaling(self, resolution):
@@ -587,6 +605,51 @@ class Downloader:
                 
         except Exception as e:
             print(f"[ERROR] Fallback audio download failed: {e}")
+            return False
+
+    def _remove_audio_with_ffmpeg(self, input_path, output_path):
+        """Remove audio track from video using FFmpeg"""
+        try:
+            if not self.ffmpeg.is_available():
+                return False
+            
+            cmd = [
+                'ffmpeg',
+                '-i', input_path,
+                '-c:v', 'copy',  # Copy video stream
+                '-an',  # No audio
+                output_path,
+                '-y'  # Overwrite output
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.returncode == 0
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to remove audio: {e}")
+            return False
+
+    def _convert_video_format(self, input_path, output_path, target_format):
+        """Convert video to target format using FFmpeg"""
+        try:
+            if not self.ffmpeg.is_available():
+                return False
+            
+            cmd = [
+                'ffmpeg',
+                '-i', input_path,
+                '-c:v', 'libx264',  # Use H.264 codec
+                '-c:a', 'aac',  # Use AAC audio codec
+                '-crf', '23',  # Good quality
+                output_path,
+                '-y'  # Overwrite output
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.returncode == 0
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to convert format: {e}")
             return False
 
     def _convert_to_format(self, download_dir, target_format):
@@ -1509,23 +1572,26 @@ class Downloader:
             return False
 
     def _download_playlist_video(self, url, playlist_dir):
-        """Download playlist as videos"""
+        """Download playlist as videos using fallback method"""
         try:
+            print(f"Downloading playlist videos to: {playlist_dir}")
+            print(f"URL: {url}")
+            print("Format: MP4")
+            print("Starting playlist download...\n")
+
+            # Download all videos in the playlist
             cmd = [
                 self.yt_dlp_path,
                 '--yes-playlist',
-                '-f', 'bestvideo+bestaudio/best',
-                '--remux-video', 'mp4',
+                '-f', 'best',  # Download best quality
                 '-o', str(playlist_dir / '%(playlist_index)s - %(title)s.%(ext)s'),
                 '--progress',
                 '--no-warnings',
                 url
             ]
 
-            print(f"Downloading playlist videos to: {playlist_dir}")
-            print(f"URL: {url}")
-            print("Format: MP4")
-            print("Starting playlist download...\n")
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
 
             result = subprocess.run(
                 cmd,
@@ -1536,10 +1602,34 @@ class Downloader:
 
             if result.returncode == 0:
                 print("\n[SUCCESS] Playlist video download completed successfully!")
+                
+                # Post-process videos to MP4 format if needed
+                video_files = []
+                for ext in ['*.mkv', '*.webm', '*.avi', '*.mov']:
+                    video_files.extend(playlist_dir.glob(ext))
+                
+                if video_files and self.ffmpeg.is_available():
+                    print(f"[INFO] Converting {len(video_files)} videos to MP4 format...")
+                    converted_count = 0
+                    
+                    for video_file in video_files:
+                        if video_file.suffix.lower() != '.mp4':
+                            mp4_output = video_file.with_suffix('.mp4')
+                            print(f"[INFO] Converting: {video_file.name}")
+                            
+                            if self._convert_video_format(str(video_file), str(mp4_output), 'mp4'):
+                                video_file.unlink()  # Remove original
+                                converted_count += 1
+                            else:
+                                print(f"[WARNING] Failed to convert {video_file.name}")
+                    
+                    if converted_count > 0:
+                        print(f"[SUCCESS] Converted {converted_count} videos to MP4")
+                
                 self._show_download_info(playlist_dir)
                 return True
             else:
-                print(f"\n[ERROR] Playlist download failed with exit code: {result.returncode}")
+                print(f"\n[ERROR] Playlist video download failed with exit code: {result.returncode}")
                 return False
 
         except Exception as e:
@@ -1613,24 +1703,26 @@ class Downloader:
             return False
 
     def _download_playlist_audio(self, url, playlist_dir):
-        """Download playlist as audio only"""
+        """Download playlist as audio only using fallback method"""
         try:
+            print(f"Downloading playlist audio to: {playlist_dir}")
+            print(f"URL: {url}")
+            print("Format: MP3")
+            print("Starting playlist audio download...\n")
+
+            # First, download all videos in the playlist
             cmd = [
                 self.yt_dlp_path,
                 '--yes-playlist',
-                '-x',
-                '--audio-format', 'mp3',
-                '--audio-quality', '192K',
+                '-f', 'best',  # Download best quality video
                 '-o', str(playlist_dir / '%(playlist_index)s - %(title)s.%(ext)s'),
                 '--progress',
                 '--no-warnings',
                 url
             ]
 
-            print(f"Downloading playlist audio to: {playlist_dir}")
-            print(f"URL: {url}")
-            print("Format: MP3")
-            print("Starting playlist audio download...\n")
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
 
             result = subprocess.run(
                 cmd,
@@ -1639,12 +1731,56 @@ class Downloader:
                 text=True
             )
 
-            if result.returncode == 0:
-                print("\n[SUCCESS] Playlist audio download completed successfully!")
+            if result.returncode != 0:
+                print(f"\n[ERROR] Playlist video download failed with exit code: {result.returncode}")
+                return False
+
+            # Now extract audio from all downloaded videos
+            video_files = []
+            for ext in ['*.mp4', '*.mkv', '*.webm', '*.avi', '*.mov']:
+                video_files.extend(playlist_dir.glob(ext))
+
+            if not video_files:
+                print("[ERROR] No video files found after playlist download")
+                return False
+
+            print(f"\n[INFO] Found {len(video_files)} videos. Extracting audio...")
+
+            # Extract audio from each video
+            success_count = 0
+            for video_file in video_files:
+                print(f"[INFO] Extracting audio from: {video_file.name}")
+                
+                if self.ffmpeg.is_available():
+                    audio_output = video_file.with_suffix('.mp3')
+                    
+                    success = self.ffmpeg.extract_audio(
+                        str(video_file),
+                        str(audio_output),
+                        format='mp3',
+                        quality='192k'
+                    )
+                    
+                    if success:
+                        # Remove the original video file
+                        try:
+                            video_file.unlink()
+                            success_count += 1
+                        except Exception as e:
+                            print(f"[WARNING] Could not remove video file {video_file.name}: {e}")
+                            success_count += 1  # Still count as success since audio was extracted
+                    else:
+                        print(f"[ERROR] Failed to extract audio from {video_file.name}")
+                else:
+                    print("[ERROR] FFmpeg not available for audio extraction")
+                    break
+
+            if success_count > 0:
+                print(f"\n[SUCCESS] Successfully extracted audio from {success_count}/{len(video_files)} videos!")
                 self._show_download_info(playlist_dir)
                 return True
             else:
-                print(f"\n[ERROR] Playlist audio download failed with exit code: {result.returncode}")
+                print("\n[ERROR] Failed to extract audio from any videos")
                 return False
 
         except Exception as e:
