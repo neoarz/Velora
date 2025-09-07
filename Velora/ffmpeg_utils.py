@@ -12,6 +12,12 @@ class FFmpegUtils:
     def __init__(self):
         self.ffmpeg_path = self._find_ffmpeg()
         self.ffprobe_path = self._find_ffprobe()
+        
+        # Debug: Print detected paths
+        if self.ffmpeg_path:
+            print(f"[DEBUG] FFmpeg found at: {self.ffmpeg_path}")
+        else:
+            print("[DEBUG] FFmpeg not found")
     
     def _find_ffmpeg(self) -> str:
         common_paths = [

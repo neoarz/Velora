@@ -66,6 +66,12 @@ class Downloader:
         download_dir.mkdir(parents=True, exist_ok=True)
         return download_dir
 
+    def _add_ffmpeg_location_to_cmd(self, cmd):
+        """Add ffmpeg location to yt-dlp command if available"""
+        if self.ffmpeg.ffmpeg_path:
+            cmd.extend(['--ffmpeg-location', self.ffmpeg.ffmpeg_path])
+        return cmd
+
     def download_with_options(self, url, resolution="best", include_audio=True, output_format="mp4", audio_only=False):
         """Download video with specific resolution, audio, and format options"""
         try:
@@ -115,6 +121,9 @@ class Downloader:
             # Add format options
             if format_opts:
                 cmd.extend(format_opts)
+
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
 
             # Add URL
             cmd.append(url)
@@ -468,6 +477,9 @@ class Downloader:
                 '--no-warnings',
                 url
             ]
+
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
 
             print(f"Downloading audio to: {download_dir}")
             print(f"URL: {url}")
