@@ -66,6 +66,12 @@ class Downloader:
         download_dir.mkdir(parents=True, exist_ok=True)
         return download_dir
 
+    def _add_ffmpeg_location_to_cmd(self, cmd):
+        """Add ffmpeg location to yt-dlp command if available"""
+        if self.ffmpeg.ffmpeg_path and self.ffmpeg.ffmpeg_path is not None:
+            cmd.extend(['--ffmpeg-location', self.ffmpeg.ffmpeg_path])
+        return cmd
+
     def download_with_options(self, url, resolution="best", include_audio=True, output_format="mp4", audio_only=False):
         """Download video with specific resolution, audio, and format options"""
         try:
@@ -115,6 +121,9 @@ class Downloader:
             # Add format options
             if format_opts:
                 cmd.extend(format_opts)
+
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
 
             # Add URL
             cmd.append(url)
@@ -468,6 +477,9 @@ class Downloader:
                 '--no-warnings',
                 url
             ]
+
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
 
             print(f"Downloading audio to: {download_dir}")
             print(f"URL: {url}")
@@ -1613,7 +1625,10 @@ class Downloader:
                 '--verbose',
                 url
             ]
-            
+
+            # Add ffmpeg location if available
+            cmd = self._add_ffmpeg_location_to_cmd(cmd)
+
             print(f"[INFO] Downloading thumbnail from: {url}")
             print(f"[INFO] Saving to: {download_dir}")
             
@@ -1621,7 +1636,7 @@ class Downloader:
             spinner = Spinner("Downloading thumbnail...")
             spinner.start()
             
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(download_dir))
+            result = subprocess.run(cmd, capture_output=True, cwd=str(download_dir), errors='replace')
             
             spinner.stop()
             
@@ -1677,14 +1692,22 @@ class Downloader:
                     
                     # Check if yt-dlp output contains useful information
                     if result.stdout:
-                        print(f"[DEBUG] yt-dlp output: {result.stdout}")
+                        try:
+                            stdout_text = result.stdout.decode('utf-8', errors='replace') if isinstance(result.stdout, bytes) else str(result.stdout)
+                            print(f"[DEBUG] yt-dlp output: {stdout_text}")
+                        except:
+                            print("[DEBUG] yt-dlp output: (unable to decode)")
                     
                     print("[WARNING] Thumbnail download completed but file not found")
                     return False
             else:
                 print(f"[ERROR] Thumbnail download failed with exit code: {result.returncode}")
                 if result.stderr:
-                    print(f"[ERROR] {result.stderr}")
+                    try:
+                        stderr_text = result.stderr.decode('utf-8', errors='replace') if isinstance(result.stderr, bytes) else str(result.stderr)
+                        print(f"[ERROR] {stderr_text}")
+                    except:
+                        print("[ERROR] (unable to decode error message)")
                 return False
                 
         except Exception as e:
