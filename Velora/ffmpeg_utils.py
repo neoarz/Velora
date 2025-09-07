@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import shutil
 import ffmpeg
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
@@ -326,4 +327,56 @@ class FFmpegUtils:
             
         except Exception as e:
             print(f"[ERROR] Thumbnail extraction failed: {e}")
+            return False
+    
+    def downscale_video(self, input_path: str, output_path: str, target_height: int) -> bool:
+        """Downscale video to target height while maintaining aspect ratio"""
+        if not self.is_available():
+            print("[ERROR] FFmpeg not available for downscaling")
+            return False
+        
+        try:
+            # First, check if we can get video info to validate the input
+            video_info = self.get_video_info(input_path)
+            if video_info and 'height' in video_info:
+                current_height = video_info['height']
+                if current_height <= target_height:
+                    print(f"[INFO] Video is already {current_height}p, no downscaling needed")
+                    # Just copy the file if it's already smaller/equal to target
+                    shutil.copy2(input_path, output_path)
+                    return True
+            
+            # Use subprocess method directly as it's more reliable
+            return self._downscale_with_subprocess(input_path, output_path, target_height)
+            
+        except Exception as e:
+            print(f"[ERROR] Video downscaling failed: {e}")
+            return False
+    
+    def _downscale_with_subprocess(self, input_path: str, output_path: str, target_height: int) -> bool:
+        """Fallback downscaling method using subprocess"""
+        try:
+            cmd = [
+                self.ffmpeg_path,
+                '-i', input_path,
+                '-vf', f'scale=-2:{target_height}',  # -2 ensures width is even
+                '-c:v', 'libx264',
+                '-crf', '23',
+                '-preset', 'medium',
+                '-c:a', 'copy',  # Copy audio without re-encoding
+                '-y',  # Overwrite output
+                output_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print(f"[SUCCESS] Downscaled video to: {output_path}")
+                return True
+            else:
+                print(f"[ERROR] FFmpeg subprocess failed: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] Subprocess downscaling failed: {e}")
             return False

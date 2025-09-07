@@ -3,9 +3,14 @@
 import subprocess
 import os
 import sys
-import ffmpeg
 from pathlib import Path
 from .ffmpeg_utils import FFmpegUtils
+
+try:
+    import ffmpeg
+    FFMPEG_PYTHON_AVAILABLE = True
+except ImportError:
+    FFMPEG_PYTHON_AVAILABLE = False
 
 class Downloader:
     def __init__(self, config):
@@ -75,6 +80,26 @@ class Downloader:
             if audio_only:
                 return self._download_audio_only(url, download_dir, output_format)
             
+            # Check if we need special handling for platform-specific downscaling
+            is_instagram = 'instagram.com' in url.lower()
+            is_tiktok = 'tiktok.com' in url.lower()
+            
+            if is_instagram and self._needs_instagram_downscaling(resolution):
+                success = self._download_instagram_with_downscaling(url, resolution, include_audio, output_format, download_dir)
+                if success:
+                    return True
+                else:
+                    print("[INFO] Instagram downscaling failed, trying regular download...")
+                    # Continue with regular download as fallback
+            elif is_tiktok and self._needs_tiktok_downscaling(resolution):
+                success = self._download_tiktok_with_downscaling(url, resolution, include_audio, output_format, download_dir)
+                if success:
+                    return True
+                else:
+                    print("[INFO] TikTok downscaling failed, trying regular download...")
+                    # Continue with regular download as fallback
+            
+            # Regular download (or fallback from Instagram)
             # Build format string based on options
             format_opts = self._build_format_string(resolution, include_audio, output_format)
 
@@ -112,12 +137,28 @@ class Downloader:
             if result.returncode == 0:
                 print("\n[SUCCESS] Download completed successfully!")
                 
+                # Remove audio if "No audio" was selected and we got a combined file
+                if not include_audio:
+                    self._remove_audio_from_downloaded_files(download_dir)
+                
                 # Handle format post-processing if needed
-                if hasattr(self, '_desired_format'):
-                    if self._desired_format == 'mov':
-                        success = self._convert_to_mov(download_dir)
-                        if not success:
-                            print("[WARNING] MOV conversion failed, but original download succeeded")
+                if hasattr(self, '_desired_format') and self._desired_format:
+                    # Check if conversion is actually needed
+                    video_files = []
+                    for ext in ['*.mp4', '*.mkv', '*.webm', '*.avi', '*.mov']:
+                        video_files.extend(download_dir.glob(ext))
+                    
+                    if video_files:
+                        latest_video = max(video_files, key=lambda x: x.stat().st_mtime)
+                        current_ext = latest_video.suffix.lower().lstrip('.')
+                        target_ext = self._desired_format.lower()
+                        
+                        if current_ext != target_ext:
+                            success = self._convert_to_format(download_dir, self._desired_format)
+                            if not success:
+                                print(f"[WARNING] {self._desired_format.upper()} conversion failed, but original download succeeded")
+                        else:
+                            print(f"[INFO] Video already in {self._desired_format.upper()} format, no conversion needed.")
                 
                 self._show_download_info(download_dir)
                 return True
@@ -128,6 +169,288 @@ class Downloader:
 
         except Exception as e:
             print(f"\n[ERROR] Error during download: {e}")
+            return False
+
+    def _needs_instagram_downscaling(self, resolution):
+        """Check if Instagram video needs FFmpeg downscaling"""
+        if resolution == "best":
+            return False
+        
+        # Instagram typically supports 1080p and 720p natively
+        # For lower resolutions, we need to downscale with FFmpeg
+        low_res_targets = ["480p", "360p", "144p"]
+        return resolution in low_res_targets
+
+    def _needs_tiktok_downscaling(self, resolution):
+        """Check if TikTok video needs FFmpeg downscaling"""
+        if resolution == "best":
+            return False
+        
+        # TikTok provides videos at their native resolution only
+        # Any specific resolution request might need downscaling
+        return resolution in ["1080p", "720p", "480p", "360p", "144p"]
+
+    def _download_instagram_with_downscaling(self, url, target_resolution, include_audio, output_format, download_dir):
+        """Download Instagram video at best quality then downscale with FFmpeg"""
+        try:
+            print(f"[INFO] Instagram detected - downloading at best quality for downscaling to {target_resolution}")
+            
+            # For Instagram, try multiple format strategies
+            format_strategies = [
+                'best[ext=mp4]',  # Try best MP4 first
+                'best',           # Fallback to any best format
+                'bestvideo+bestaudio/best',  # Try combined video+audio
+                None              # Let yt-dlp decide
+            ]
+            
+            temp_file = None
+            
+            for strategy in format_strategies:
+                try:
+                    # Create temporary filename for high-res download
+                    temp_template = str(download_dir / 'temp_%(title)s.%(ext)s')
+                    
+                    cmd = [
+                        self.yt_dlp_path,
+                        '--no-playlist',
+                        '-o', temp_template,
+                        '--progress',
+                        '--no-warnings',
+                    ]
+                    
+                    # Add format strategy if specified
+                    if strategy:
+                        cmd.extend(['-f', strategy])
+                    
+                    # Add audio option
+                    if not include_audio:
+                        # For video-only, try to get video stream only
+                        if strategy and 'bestvideo' not in strategy:
+                            cmd.extend(['--no-audio'])
+                    
+                    cmd.append(url)
+                    
+                    print(f"Trying format strategy: {strategy or 'default'}")
+                    result = subprocess.run(
+                        cmd,
+                        cwd=str(download_dir),
+                        capture_output=False,
+                        text=True
+                    )
+                    
+                    if result.returncode == 0:
+                        # Find the downloaded file
+                        temp_files = list(download_dir.glob("temp_*"))
+                        if temp_files:
+                            temp_file = temp_files[0]
+                            print(f"Successfully downloaded: {temp_file.name}")
+                            break
+                    else:
+                        print(f"Strategy failed with exit code: {result.returncode}")
+                        continue
+                        
+                except Exception as e:
+                    print(f"Strategy '{strategy}' failed: {e}")
+                    continue
+            
+            if not temp_file:
+                print("[ERROR] All download strategies failed")
+                return False
+            
+            # Determine target dimensions
+            target_height = int(target_resolution.replace('p', ''))
+            
+            # Create final output filename
+            final_name = temp_file.name.replace('temp_', '')
+            final_path = download_dir / final_name
+            
+            print(f"Downscaling to {target_resolution} using FFmpeg...")
+            
+            # Use FFmpeg to downscale
+            if self.ffmpeg.is_available():
+                success = self._ffmpeg_downscale_video(str(temp_file), str(final_path), target_height)
+                
+                if success:
+                    # Remove the temporary high-res file
+                    temp_file.unlink()
+                    print(f"[SUCCESS] Instagram video downscaled to {target_resolution}")
+                    
+                    # Apply post-processing: remove audio if needed
+                    if not include_audio:
+                        print("Removing audio from downscaled Instagram video...")
+                        self._remove_audio_from_specific_file(final_path)
+                    
+                    # Apply post-processing: convert to target format if needed
+                    if output_format and output_format.lower() != 'mp4':
+                        print(f"Converting downscaled Instagram video to {output_format.upper()} format...")
+                        self._convert_specific_file_to_format(final_path, output_format)
+                    
+                    print(f"[SUCCESS] Instagram video processing completed!")
+                    self._show_download_info(download_dir)
+                    return True
+                else:
+                    print("[ERROR] FFmpeg downscaling failed")
+                    # Keep the high-res file as fallback
+                    fallback_path = download_dir / final_name
+                    temp_file.rename(fallback_path)
+                    print(f"[INFO] Keeping high-resolution version: {fallback_path}")
+                    
+                    # Still apply post-processing to the original file
+                    if not include_audio:
+                        print("Removing audio from original Instagram video...")
+                        self._remove_audio_from_specific_file(fallback_path)
+                    
+                    if output_format and output_format.lower() != 'mp4':
+                        print(f"Converting original Instagram video to {output_format.upper()} format...")
+                        self._convert_specific_file_to_format(fallback_path, output_format)
+                    
+                    return True  # Return True since we have a file, even if not downscaled
+            else:
+                print("[ERROR] FFmpeg not available for downscaling")
+                # Keep the high-res file as fallback  
+                fallback_path = download_dir / final_name
+                temp_file.rename(fallback_path)
+                print(f"[INFO] Keeping high-resolution version: {fallback_path}")
+                
+                # Still apply post-processing even without downscaling
+                if not include_audio:
+                    print("Removing audio from original Instagram video...")
+                    self._remove_audio_from_specific_file(fallback_path)
+                
+                if output_format and output_format.lower() != 'mp4':
+                    print(f"Converting original Instagram video to {output_format.upper()} format...")
+                    self._convert_specific_file_to_format(fallback_path, output_format)
+                
+                return True  # Return True since we have a file, even if not downscaled
+                
+        except Exception as e:
+            print(f"[ERROR] Instagram downscaling failed: {e}")
+            return False
+
+    def _ffmpeg_downscale_video(self, input_path, output_path, target_height):
+        """Downscale video to target height using FFmpeg while maintaining aspect ratio"""
+        try:
+            # Use FFmpegUtils to downscale
+            return self.ffmpeg.downscale_video(input_path, output_path, target_height)
+            
+        except Exception as e:
+            print(f"[ERROR] FFmpeg downscaling failed: {e}")
+            return False
+
+    def _download_tiktok_with_downscaling(self, url, target_resolution, include_audio, output_format, download_dir):
+        """Download TikTok video at best quality then downscale with FFmpeg"""
+        try:
+            print(f"[INFO] TikTok detected - downloading at best quality for downscaling to {target_resolution}")
+            
+            # Download at best quality first
+            temp_filename = f"temp_tiktok_{hash(url) % 10000}"
+            temp_path = download_dir / f"{temp_filename}.%(ext)s"
+            
+            # Use best quality format for download
+            format_opts = self._build_format_string("best", include_audio, output_format)
+            
+            cmd = [
+                self.yt_dlp_path,
+                '--no-playlist',
+                '-o', str(temp_path),
+                '--progress',
+                '--no-warnings',
+            ]
+            
+            if format_opts:
+                cmd.extend(format_opts)
+            
+            cmd.append(url)
+            
+            result = subprocess.run(cmd, cwd=str(download_dir), capture_output=False, text=True)
+            
+            if result.returncode == 0:
+                # Find the downloaded file
+                temp_files = list(download_dir.glob(f"{temp_filename}.*"))
+                if not temp_files:
+                    print("[ERROR] Could not find downloaded TikTok file")
+                    return False
+                
+                temp_file = temp_files[0]
+                
+                # Get target height for downscaling
+                target_height = int(target_resolution.replace('p', ''))
+                
+                # Create final filename
+                original_name = temp_file.name.replace(temp_filename, "").lstrip('.')
+                # Get video title for proper naming
+                try:
+                    info_cmd = [self.yt_dlp_path, '--get-title', '--no-warnings', url]
+                    title_result = subprocess.run(info_cmd, capture_output=True, text=True)
+                    if title_result.returncode == 0:
+                        clean_title = "".join(c for c in title_result.stdout.strip() if c.isalnum() or c in (' ', '-', '_')).strip()
+                        final_name = f"{clean_title}.{temp_file.suffix.lstrip('.')}"
+                    else:
+                        final_name = f"tiktok_video_{target_resolution}.{temp_file.suffix.lstrip('.')}"
+                except:
+                    final_name = f"tiktok_video_{target_resolution}.{temp_file.suffix.lstrip('.')}"
+                
+                final_path = download_dir / final_name
+                
+                # Downscale using FFmpeg
+                print(f"Downscaling to {target_resolution} using FFmpeg...")
+                
+                if self.ffmpeg.is_available():
+                    success = self._ffmpeg_downscale_video(str(temp_file), str(final_path), target_height)
+                    
+                    if success:
+                        # Remove temp file
+                        temp_file.unlink()
+                        print(f"[SUCCESS] TikTok video downscaled to {target_resolution}")
+                        
+                        # Apply post-processing: remove audio if needed
+                        if not include_audio:
+                            print("Removing audio from downscaled TikTok video...")
+                            self._remove_audio_from_specific_file(final_path)
+                        
+                        # Apply post-processing: convert to target format if needed
+                        if output_format and output_format.lower() != 'mp4':
+                            print(f"Converting downscaled TikTok video to {output_format.upper()} format...")
+                            self._convert_specific_file_to_format(final_path, output_format)
+                        
+                        return True
+                    else:
+                        # Keep original if downscaling fails
+                        temp_file.rename(final_path)
+                        print(f"[WARNING] Downscaling failed, keeping original quality")
+                        
+                        # Still apply post-processing to the original file
+                        if not include_audio:
+                            print("Removing audio from original TikTok video...")
+                            self._remove_audio_from_specific_file(final_path)
+                        
+                        if output_format and output_format.lower() != 'mp4':
+                            print(f"Converting original TikTok video to {output_format.upper()} format...")
+                            self._convert_specific_file_to_format(final_path, output_format)
+                        
+                        return True
+                else:
+                    print("[ERROR] FFmpeg not available for downscaling")
+                    # Keep the original file as fallback
+                    temp_file.rename(final_path)
+                    print(f"[INFO] Keeping original resolution version: {final_path}")
+                    
+                    # Still apply post-processing even without downscaling
+                    if not include_audio:
+                        print("Removing audio from original TikTok video...")
+                        self._remove_audio_from_specific_file(final_path)
+                    
+                    if output_format and output_format.lower() != 'mp4':
+                        print(f"Converting original TikTok video to {output_format.upper()} format...")
+                        self._convert_specific_file_to_format(final_path, output_format)
+                    
+                    return True
+            else:
+                print(f"[ERROR] TikTok download failed with exit code: {result.returncode}")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] TikTok downscaling failed: {e}")
             return False
 
     def _download_audio_only(self, url, download_dir, audio_format="mp3"):
@@ -172,7 +495,58 @@ class Downloader:
             print(f"\n[ERROR] Error during audio download: {e}")
             return False
 
+    def _convert_to_format(self, download_dir, target_format):
+        """Convert downloaded files to target format using FFmpeg"""
+        try:
+            # Find the most recently downloaded video file
+            video_files = []
+            for ext in ['*.mp4', '*.mkv', '*.webm', '*.avi', '*.mov']:
+                video_files.extend(download_dir.glob(ext))
+            
+            if not video_files:
+                print(f"[WARNING] No video file found for {target_format.upper()} conversion")
+                return False
+            
+            # Get the most recent file
+            latest_video = max(video_files, key=lambda x: x.stat().st_mtime)
+            current_ext = latest_video.suffix.lower().lstrip('.')
+            target_ext = target_format.lower()
+            
+            # Check if file is already in target format
+            if current_ext == target_ext:
+                print(f"[INFO] {latest_video.name} is already in {target_format.upper()} format.")
+                return True
+            
+            target_path = latest_video.with_suffix(f'.{target_ext}')
+            
+            print(f"Converting {latest_video.name} to {target_format.upper()} format...")
+            
+            # Use FFmpeg for conversion
+            if self.ffmpeg.is_available():
+                if target_format.lower() == 'mov':
+                    success = self._ffmpeg_convert_to_mov(str(latest_video), str(target_path))
+                else:
+                    success = self._ffmpeg_convert_to_format(str(latest_video), str(target_path), target_format.lower())
+                
+                if success:
+                    # Remove the original file
+                    latest_video.unlink()
+                    print(f"[SUCCESS] Converted to {target_path.name}")
+                    return True
+                else:
+                    print(f"[ERROR] FFmpeg conversion to {target_format.upper()} failed")
+                    return False
+            else:
+                print(f"[ERROR] FFmpeg not available for {target_format.upper()} conversion")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] {target_format.upper()} conversion failed: {e}")
+            return False
+
     def _convert_to_mov(self, download_dir):
+        """Convert downloaded MP4 files to MOV format using FFmpeg (legacy method)"""
+        return self._convert_to_format(download_dir, 'mov')
         """Convert downloaded MP4 files to MOV format using FFmpeg"""
         try:
             # Find the most recently downloaded MP4 file
@@ -206,46 +580,318 @@ class Downloader:
             print(f"[ERROR] MOV conversion failed: {e}")
             return False
 
+    def _remove_audio_from_downloaded_files(self, download_dir):
+        """Remove audio from downloaded video files when 'No audio' was selected"""
+        if not self.ffmpeg.is_available():
+            print("[WARNING] FFmpeg not available. Cannot remove audio from video.")
+            return False
+
+        try:
+            # Find video files that likely have audio
+            video_files = []
+            for ext in ['*.mp4', '*.mkv', '*.webm', '*.avi', '*.mov']:
+                video_files.extend(download_dir.glob(ext))
+            
+            if not video_files:
+                print("[INFO] No video files found to process.")
+                return True
+            
+            # Get the most recently downloaded file
+            latest_video = max(video_files, key=lambda x: x.stat().st_mtime)
+            
+            # Check if file has audio
+            video_info = self.ffmpeg.get_video_info(str(latest_video))
+            if not video_info or 'audio_codec' not in video_info:
+                print(f"[INFO] {latest_video.name} appears to have no audio stream.")
+                return True
+            
+            print(f"Removing audio from {latest_video.name}...")
+            
+            # Create output path with "_no_audio" suffix
+            output_path = latest_video.with_stem(f"{latest_video.stem}_no_audio")
+            
+            # Use FFmpeg to copy video stream without audio
+            success = self._ffmpeg_remove_audio(str(latest_video), str(output_path))
+            
+            if success:
+                # Replace the original file
+                latest_video.unlink()
+                output_path.rename(latest_video)
+                print(f"[SUCCESS] Audio removed from {latest_video.name}")
+                return True
+            else:
+                print("[ERROR] Failed to remove audio")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] Audio removal failed: {e}")
+            return False
+
+    def _ffmpeg_remove_audio(self, input_path, output_path):
+        """Remove audio from video using FFmpeg"""
+        try:
+            if FFMPEG_PYTHON_AVAILABLE:
+                import ffmpeg
+                # Use stream copy for video, no audio stream
+                stream = ffmpeg.input(input_path)
+                stream = ffmpeg.output(stream, output_path, vcodec='copy', an=None)
+                ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                return True
+            else:
+                # Fallback to subprocess
+                cmd = [
+                    self.ffmpeg.ffmpeg_path,
+                    '-i', input_path,
+                    '-c:v', 'copy',  # Copy video stream
+                    '-an',           # No audio
+                    '-y',            # Overwrite output
+                    output_path
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                return result.returncode == 0
+                
+        except Exception as e:
+            print(f"[ERROR] FFmpeg audio removal failed: {e}")
+            return False
+
+    def _remove_audio_from_specific_file(self, file_path):
+        """Remove audio from a specific file"""
+        if not self.ffmpeg.is_available():
+            print("[WARNING] FFmpeg not available. Cannot remove audio from video.")
+            return False
+
+        try:
+            file_path = Path(file_path)
+            
+            # Check if file has audio
+            video_info = self.ffmpeg.get_video_info(str(file_path))
+            if not video_info or 'audio_codec' not in video_info:
+                print(f"[INFO] {file_path.name} appears to have no audio stream.")
+                return True
+            
+            print(f"Removing audio from {file_path.name}...")
+            
+            # Create output path with "_no_audio" suffix
+            output_path = file_path.with_stem(f"{file_path.stem}_no_audio")
+            
+            # Use FFmpeg to copy video stream without audio
+            success = self._ffmpeg_remove_audio(str(file_path), str(output_path))
+            
+            if success:
+                # Replace the original file
+                file_path.unlink()
+                output_path.rename(file_path)
+                print(f"[SUCCESS] Audio removed from {file_path.name}")
+                return True
+            else:
+                print("[ERROR] Failed to remove audio")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] Audio removal failed: {e}")
+            return False
+
+    def _convert_specific_file_to_format(self, file_path, target_format):
+        """Convert a specific file to the target format (MP4, MKV, WEBM, MOV)"""
+        try:
+            file_path = Path(file_path)
+            target_format = target_format.lower()
+            current_ext = file_path.suffix.lower().lstrip('.')
+            
+            if current_ext == target_format:
+                print(f"[INFO] {file_path.name} is already in {target_format.upper()} format.")
+                return True
+            
+            new_path = file_path.with_suffix(f'.{target_format}')
+            print(f"Converting {file_path.name} to {target_format.upper()} format...")
+            
+            if not self.ffmpeg.is_available():
+                print("[ERROR] FFmpeg not available for format conversion")
+                return False
+            
+            # Use appropriate conversion method based on target format
+            if target_format == 'mov':
+                success = self._ffmpeg_convert_to_mov(str(file_path), str(new_path))
+            else:
+                success = self._ffmpeg_convert_to_format(str(file_path), str(new_path), target_format)
+            
+            if success:
+                # Remove the original file
+                file_path.unlink()
+                print(f"[SUCCESS] Converted to {new_path.name}")
+                return True
+            else:
+                print(f"[ERROR] FFmpeg conversion to {target_format.upper()} failed")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] Format conversion failed: {e}")
+            return False
+
+    def _ffmpeg_convert_to_format(self, input_path, output_path, target_format):
+        """Convert video to target format using FFmpeg"""
+        try:
+            if FFMPEG_PYTHON_AVAILABLE:
+                import ffmpeg
+                
+                # Format-specific settings
+                if target_format == 'mkv':
+                    # MKV supports most codecs, try stream copy first
+                    try:
+                        stream = ffmpeg.input(input_path)
+                        stream = ffmpeg.output(stream, output_path, vcodec='copy', acodec='copy')
+                        ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                        return True
+                    except:
+                        # Fallback to re-encoding
+                        stream = ffmpeg.input(input_path)
+                        stream = ffmpeg.output(stream, output_path, vcodec='libx264', acodec='aac')
+                        ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                        return True
+                
+                elif target_format == 'webm':
+                    # WebM requires VP8/VP9 video and Vorbis/Opus audio
+                    stream = ffmpeg.input(input_path)
+                    stream = ffmpeg.output(stream, output_path, vcodec='libvpx-vp9', acodec='libopus', crf=30)
+                    ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                    return True
+                
+                elif target_format == 'mp4':
+                    # MP4 with H.264 and AAC
+                    try:
+                        # Try stream copy first
+                        stream = ffmpeg.input(input_path)
+                        stream = ffmpeg.output(stream, output_path, vcodec='copy', acodec='copy', movflags='faststart')
+                        ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                        return True
+                    except:
+                        # Fallback to re-encoding
+                        stream = ffmpeg.input(input_path)
+                        stream = ffmpeg.output(stream, output_path, vcodec='libx264', acodec='aac', movflags='faststart')
+                        ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                        return True
+            
+            # Fallback to subprocess method
+            return self._subprocess_convert_to_format(input_path, output_path, target_format)
+            
+        except Exception as e:
+            print(f"[ERROR] FFmpeg format conversion failed: {e}")
+            return self._subprocess_convert_to_format(input_path, output_path, target_format)
+
+    def _subprocess_convert_to_format(self, input_path, output_path, target_format):
+        """Fallback format conversion using subprocess"""
+        try:
+            if target_format == 'mkv':
+                cmd = [
+                    self.ffmpeg.ffmpeg_path, '-i', input_path,
+                    '-c:v', 'copy', '-c:a', 'copy', '-y', output_path
+                ]
+            elif target_format == 'webm':
+                cmd = [
+                    self.ffmpeg.ffmpeg_path, '-i', input_path,
+                    '-c:v', 'libvpx-vp9', '-c:a', 'libopus', '-crf', '30', '-y', output_path
+                ]
+            elif target_format == 'mp4':
+                cmd = [
+                    self.ffmpeg.ffmpeg_path, '-i', input_path,
+                    '-c:v', 'libx264', '-c:a', 'aac', '-movflags', 'faststart', '-y', output_path
+                ]
+            else:
+                return False
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.returncode == 0
+            
+        except Exception as e:
+            print(f"[ERROR] Subprocess format conversion failed: {e}")
+            return False
+
     def _ffmpeg_convert_to_mov(self, input_path, output_path):
         """Convert video to MOV format using FFmpeg with proper codec settings"""
         try:
-            # Use stream copy for fast conversion when possible
-            # MOV container typically works well with H.264 video and AAC audio
-            stream = ffmpeg.input(input_path)
-            stream = ffmpeg.output(
-                stream, 
-                output_path,
-                vcodec='copy',  # Copy video stream without re-encoding
-                acodec='copy',  # Copy audio stream without re-encoding
-                movflags='faststart'  # Optimize for web streaming
-            )
+            if FFMPEG_PYTHON_AVAILABLE:
+                # Try using ffmpeg-python library first
+                try:
+                    # Use stream copy for fast conversion when possible
+                    # MOV container typically works well with H.264 video and AAC audio
+                    stream = ffmpeg.input(input_path)
+                    stream = ffmpeg.output(
+                        stream, 
+                        output_path,
+                        vcodec='copy',  # Copy video stream without re-encoding
+                        acodec='copy',  # Copy audio stream without re-encoding
+                        movflags='faststart'  # Optimize for web streaming
+                    )
+                    
+                    ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                    return True
+                    
+                except Exception as e:
+                    # Stream copy failed, this is normal for some videos
+                    print("[INFO] Fast conversion not possible, re-encoding video for MOV compatibility...")
+                    
+                    # Fallback: Re-encode with H.264 and AAC (more compatible)
+                    try:
+                        stream = ffmpeg.input(input_path)
+                        stream = ffmpeg.output(
+                            stream, 
+                            output_path,
+                            vcodec='libx264',
+                            acodec='aac',
+                            crf=23,  # Good quality
+                            preset='medium',
+                            movflags='faststart'
+                        )
+                        
+                        ffmpeg.run(stream, overwrite_output=True, quiet=True)
+                        return True
+                        
+                    except Exception as e2:
+                        print(f"[ERROR] FFmpeg MOV conversion failed: {e2}")
+                        # Fall through to subprocess method
             
-            ffmpeg.run(stream, overwrite_output=True, quiet=True)
-            return True
-            
-        except Exception as e:
-            # Stream copy failed, this is normal for some videos
-            print("[INFO] Fast conversion not possible, re-encoding video for MOV compatibility...")
-            
-            # Fallback: Re-encode with H.264 and AAC (more compatible)
-            try:
-                stream = ffmpeg.input(input_path)
-                stream = ffmpeg.output(
-                    stream, 
-                    output_path,
-                    vcodec='libx264',
-                    acodec='aac',
-                    crf=23,  # Good quality
-                    preset='medium',
-                    movflags='faststart'
-                )
-                
-                ffmpeg.run(stream, overwrite_output=True, quiet=True)
-                return True
-                
-            except Exception as e2:
-                print(f"[ERROR] FFmpeg MOV conversion failed: {e2}")
+            # Subprocess fallback
+            if not self.ffmpeg.is_available():
+                print("[ERROR] FFmpeg not available for MOV conversion")
                 return False
+            
+            # Try copy first (fast)
+            cmd = [
+                self.ffmpeg.ffmpeg_path,
+                '-i', input_path,
+                '-c:v', 'copy',
+                '-c:a', 'copy',
+                '-movflags', 'faststart',
+                '-y',  # Overwrite output file
+                output_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                return True
+            else:
+                # Try re-encoding
+                print("[INFO] Fast conversion failed, re-encoding for MOV compatibility...")
+                cmd = [
+                    self.ffmpeg.ffmpeg_path,
+                    '-i', input_path,
+                    '-c:v', 'libx264',
+                    '-c:a', 'aac',
+                    '-crf', '23',
+                    '-preset', 'medium',
+                    '-movflags', 'faststart',
+                    '-y',  # Overwrite output file
+                    output_path
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                return result.returncode == 0
+                
+        except Exception as e:
+            print(f"[ERROR] MOV conversion failed: {e}")
+            return False
 
     def _build_format_string(self, resolution, include_audio, output_format="mp4"):
         """Build yt-dlp format string based on resolution, audio preferences, and output format"""
@@ -254,14 +900,16 @@ class Downloader:
             if include_audio:
                 format_string = 'bestvideo+bestaudio/best'
             else:
-                format_string = 'bestvideo'
+                # For video-only, fallback to best format if separate video stream not available
+                format_string = 'bestvideo/best'
         else:
             # Specific resolution (1080p, 720p, 480p, 360p, 144p)
             height = resolution.replace('p', '')
             if include_audio:
                 format_string = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]'
             else:
-                format_string = f'bestvideo[height<={height}]'
+                # For video-only with specific resolution, fallback to best available
+                format_string = f'bestvideo[height<={height}]/best[height<={height}]/best'
         
         # Build command options
         cmd_opts = ['-f', format_string]
