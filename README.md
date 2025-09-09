@@ -13,7 +13,7 @@
 > [!IMPORTANT]
 > **TLDR: Windows Sucks**
 > 
-> Developing this entire project on Linux and macOS, I have no intention of giving any support to windows unless someone makes a PR for it. If you are on Windows and would like you use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
+> Developing this entire project on Linux and macOS, I have no intention of giving any support to Windows unless someone makes a PR for it. If you are on Windows and would like to use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
 
 <br>
 
@@ -45,9 +45,11 @@ Velora is a Python-based terminal application that serves as a wrapper for [yt-d
 # Install FFmpeg dependency
 brew install ffmpeg
 
-# Download latest release from GitHub, unzip, and run
-# Go to https://github.com/neoarz/Velora/releases/latest
-# Download velora-macos.zip, extract it, then:
+# Download latest release from GitHub and unzip
+curl -L -o velora-macos.zip https://github.com/neoarz/Velora/releases/latest/download/velora-macos.zip
+unzip velora-macos.zip
+
+# Make binary executable and run
 chmod +x velora
 ./velora
 
