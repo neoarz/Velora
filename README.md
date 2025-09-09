@@ -13,7 +13,7 @@
 > [!IMPORTANT]
 > **TLDR: Windows Sucks**
 > 
-> Developing this entire project on Linux and macoOS, I have no intention of giving any support to windows unless someone makes a PR for it. If you are on Windows and would like you use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
+> Developing this entire project on Linux and macOS, I have no intention of giving any support to Windows unless someone makes a PR for it. If you are on Windows and would like to use this software, it works on [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) from my testing. (Ubuntu and Arch)
 
 <br>
 
@@ -24,15 +24,15 @@
 
 
 ## What is Velora?
-Velora is a Python-based terminal application that serves as a wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) (video downloader) and [FFmpeg](https://github.com/FFmpeg/FFmpeg) (video and image processor) with an command-line interface. The project uses yt-dlp as its core download engine to download videos and audio from different platforms such as YouTube, Tiktok, SoundCloud, Instagram, and more. It uses FFmpeg for post-processing like video format conversion (MP4, MOV, MKV), audio extraction (MP3), and thumbnail generation (PNG, JPG, WEBP).
+Velora is a Python-based terminal application that serves as a wrapper for [yt-dlp](https://github.com/yt-dlp/yt-dlp) (video downloader) and [FFmpeg](https://github.com/FFmpeg/FFmpeg) (video and image processor) with a command-line interface. The project uses yt-dlp as its core download engine to download videos and audio from different platforms such as YouTube, Tiktok, SoundCloud, Instagram, and more. It uses FFmpeg for post-processing like video format conversion (MP4, MOV, MKV), audio extraction (MP3), and thumbnail generation (PNG, JPG, WEBP).
  
 ## Features
 - Download from YouTube, Vimeo, SoundCloud, TikTok, Instagram, and more
 - Extract audio from videos in MP3 format
 - Download entire playlists (Youtube)
-- Clean, ui (I tried my best)
+- Clean, UI (I tried my best)
 - Live download progress with speed and ETA
-- Multiple video formats (MP4, MOV, MKV,) using FFmpeg
+- Multiple video formats (MP4, MOV, MKV) using FFmpeg
 - Get video information before downloading
 - Extract thumbnails from videos
 - Choose between custom configs
@@ -45,9 +45,11 @@ Velora is a Python-based terminal application that serves as a wrapper for [yt-d
 # Install FFmpeg dependency
 brew install ffmpeg
 
-# Download latest release from GitHub, unzip, and run
-# Go to https://github.com/neoarz/Velora/releases/latest
-# Download velora-macos.zip, extract it, then:
+# Download latest release from GitHub and unzip
+curl -L -o velora-macos.zip https://github.com/neoarz/Velora/releases/latest/download/velora-macos.zip
+unzip velora-macos.zip
+
+# Make binary executable and run
 chmod +x velora
 ./velora
 
@@ -64,11 +66,14 @@ sudo yum install ffmpeg                # CentOS/RHEL
 
 sudo pacman -S ffmpeg                  # Arch Linux
 
-# Download latest release from GitHub, unzip, and run
-# Go to https://github.com/neoarz/Velora/releases/latest
-# Download velora-linux.zip, extract it, then:
+# Download latest release from GitHub and unzip
+curl -L -o velora-linux.zip https://github.com/neoarz/Velora/releases/latest/download/velora-linux.zip
+unzip velora-linux.zip
+
+# Make binary executable and run
 chmod +x velora
 ./velora
+
 ```
 
 #### Windows
