@@ -66,11 +66,14 @@ sudo yum install ffmpeg                # CentOS/RHEL
 
 sudo pacman -S ffmpeg                  # Arch Linux
 
-# Download latest release from GitHub, unzip, and run
-# Go to https://github.com/neoarz/Velora/releases/latest
-# Download velora-linux.zip, extract it, then:
+# Download latest release from GitHub and unzip
+curl -L -o velora-linux.zip https://github.com/neoarz/Velora/releases/latest/download/velora-linux.zip
+unzip velora-linux.zip
+
+# Make binary executable and run
 chmod +x velora
 ./velora
+
 ```
 
 #### Windows
